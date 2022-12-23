@@ -1,3 +1,5 @@
+//https://serokell.io/blog/structs-in-rust
+
 struct Node<T, U> {
     data: T,
     grad: U, // Should this always be f64?
@@ -5,7 +7,7 @@ struct Node<T, U> {
     // graph construction
     _backward: String, // ??
     _prev: u64,// hashmap? hashset?
-    _op: String,
+    _op: String
 }
 
 // Should this be a trait/impl?
