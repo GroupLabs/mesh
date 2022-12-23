@@ -1,6 +1,6 @@
-struct Value {
-    data: u64,
-    grad: u64,
+struct Node<T, U> {
+    data: T,
+    grad: U,
     
     // graph construction
     _backward: String, // ??
@@ -8,8 +8,15 @@ struct Value {
     _op: String,
 }
 
-fn value_constructor(data: u64, grad: u64) -> Value {
-    Value {
+// Should this be a trait/impl?
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
+}
+
+
+// Should this be a trait/impl?
+fn node_constructor<T, U>(data: T, grad: U) -> Node<T, U> {
+    Node {
         data,
         grad,
         _backward: String::from(""),
@@ -18,15 +25,17 @@ fn value_constructor(data: u64, grad: u64) -> Value {
     }
 }
 
-fn trace(root: &Value) {
-    // Find all nodes
-}
+// Trace the graph
+// fn trace(root: &Value) {
+//     // Find all nodes
+// }
 
 fn main() {
 
-    let mut x = value_constructor(1, 0);
+    let mut x = node_constructor(1, 0.0);
 
-    x.grad = 1;
+    x.grad = 1.0;
 
     println!("data: {}, grad: {}", x.data, x.grad);
+    print_type_of(&x.grad);
 }
