@@ -1,6 +1,6 @@
 struct Node<T, U> {
     data: T,
-    grad: U,
+    grad: U, // Should this always be f64?
     
     // graph construction
     _backward: String, // ??
