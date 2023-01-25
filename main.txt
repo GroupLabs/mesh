@@ -1,0 +1,13 @@
+The following is a scenario for how Mesh will be used. The following is low-level psuedo code, but we can iteratively move up
+to something like Python down the road.
+
+a = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+
+b = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+
+mesh = Mesh() // initiate Mesh context, automatically 
+
+print(mesh.devices()) // get available devices
+
+mesh.multiply(a, b) // matrix multiplication
+
