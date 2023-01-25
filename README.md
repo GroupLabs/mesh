@@ -1,5 +1,33 @@
 # Mesh
 
+## Introduction
+Mesh allows optimized software to be accelerated on any supported architecture, and autoscale to multiple backends.
+
+`Application -> Mesh -> GPUs, CPUs, TPUs, cloud services, custom SoCs (embedded devices), HALs`
+
+## Motivation
+The next generation of chips will be custom-tuned to specific use cases. Having an automatically managed compute context will allow developers to seamlessly make use of different logical devices.
+
+However, to minimize performance penalties, Mesh uses optimized libraries for each vendor.
+
+## Roadmap
+
+Support for:
+python
+Micrograd
+Tinygrad
+numpy
+XLA
+
+Intel OneAPI
+NVIDIA CUDA
+WASM + WebGPU
+Cloud Platforms (AWS, Azure, GCP, other)
+Vulkan compute
+
+Features:
+XLA-type op fusion engine
+
 ```mermaid
 
 flowchart TB
@@ -16,6 +44,7 @@ flowchart TB
         
         DeviceManager --> INTEL_Module[OneAPI Module]
         DeviceManager --> CUDA_Module[CUDA Module]
+        DeviceManager --> Other_Module[Other Modules]
     end
   end
   

@@ -9,5 +9,8 @@ mesh = Mesh() // initiate Mesh context, automatically
 
 print(mesh.devices()) // get available devices
 
-mesh.multiply(a, b) // matrix multiplication
+product = mesh.multiply(a, b) // array multiplication
 
+tensor = mesh.multiply(product, product) // matrix multiplication
+
+sum = mesh.add(tensor, tensor) // tensor addition
