@@ -1,0 +1,30 @@
+Mesh allows software to be accelerated on any supported SoC, and autoscale to multiple backends.
+
+1. Determine available backends
+2. Establish workers
+3. 
+
+
+
+------------- TOP -------------
+
+------------ BOTTOM ------------
+
+
+GPGPU languages
+
+CUDA and cuBLAS - NVIDIA GPUs
+Vulcan compute? - Other
+OneAPI and MKL - Intel chips
+
+AutumnAI -- leaf, collenchyma [https://github.com/autumnai]
+Stanford -- weld [https://github.com/weld-project/weld]
+Apache   -- kompute [https://github.com/KomputeProject/kompute]
+
+Application -> Mesh -> GPUs, CPUs, TPUs, serverless services, custom SoCs (embedded devices), other layers
+
+Roadmap
+
+Micrograd
+Tinygrad
+XLA
