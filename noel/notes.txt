@@ -1,4 +1,4 @@
-Mesh allows software to be compiled and run on (almost) any SoC, and autoscale to multiple backends.
+Mesh allows software to be accelerated on any supported SoC, and autoscale to multiple backends.
 
 1. Determine available backends
 2. Establish workers
@@ -6,9 +6,25 @@ Mesh allows software to be compiled and run on (almost) any SoC, and autoscale t
 
 
 
+------------- TOP -------------
+
+------------ BOTTOM ------------
+
+
+GPGPU languages
+
+CUDA and cuBLAS - NVIDIA GPUs
+Vulcan compute? - Other
+OneAPI and MKL - Intel chips
+
 AutumnAI -- leaf, collenchyma [https://github.com/autumnai]
 Stanford -- weld [https://github.com/weld-project/weld]
+Apache   -- kompute [https://github.com/KomputeProject/kompute]
 
-Application -> Mesh -> GPUs, CPUs, serverless services, custom SoCs (embedded devices)
+Application -> Mesh -> GPUs, CPUs, TPUs, serverless services, custom SoCs (embedded devices), other layers
 
-Autodiff is a Mesh module that establishes automatic differentiation functionality within the Mesh context.
+Roadmap
+
+Micrograd
+Tinygrad
+XLA
