@@ -1,0 +1,14 @@
+Mesh allows software to be compiled and run on (almost) any SoC, and autoscale to multiple backends.
+
+1. Determine available backends
+2. Establish workers
+3. 
+
+
+
+AutumnAI -- leaf, collenchyma [https://github.com/autumnai]
+Stanford -- weld [https://github.com/weld-project/weld]
+
+Application -> Mesh -> GPUs, CPUs, serverless services, custom SoCs (embedded devices)
+
+Autodiff is a Mesh module that establishes automatic differentiation functionality within the Mesh context.
