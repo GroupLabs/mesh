@@ -12,21 +12,23 @@ However, to minimize performance penalties, Mesh uses optimized libraries for ea
 
 ## Roadmap
 
-Support for:
-python
-Micrograd
-Tinygrad
-numpy
-XLA
+Software support for (in order):
+- Rust (under development)
+- python
+- Micrograd
+- Tinygrad
+- numpy
+- XLA
 
-Intel OneAPI
-NVIDIA CUDA
-WASM + WebGPU
-Cloud Platforms (AWS, Azure, GCP, other)
-Vulkan compute
+Hardware library support for (in order):
+- Intel OneAPI
+- NVIDIA CUDA
+- WASM + WebGPU
+- Cloud Platforms (AWS, Azure, GCP, other)
+- Vulkan compute
 
 Features:
-XLA-type op fusion engine
+- XLA-type op fusion engine
 
 ```mermaid
 
