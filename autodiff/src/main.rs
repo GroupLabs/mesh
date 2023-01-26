@@ -6,7 +6,7 @@ struct Node<T, U> {
     
     // graph construction
     _backward: String, // ??
-    _prev: u64,// hashmap? hashset?
+    _prev: u64,// hashmap? hashset? vector?
     _op: String
 }
 
@@ -22,6 +22,7 @@ impl<T, U> Node<T, U>{
     }
 }
 
+// Add
 impl<T: Add<Output = T>, U> Add for Node<T, U> {
     type Output = Self;
 
@@ -37,6 +38,7 @@ impl<T: Add<Output = T>, U> Add for Node<T, U> {
     }
 }
 
+// Sub
 impl<T: Sub<Output = T>, U> Sub for Node<T, U> {
     type Output = Self;
 
@@ -52,6 +54,7 @@ impl<T: Sub<Output = T>, U> Sub for Node<T, U> {
     }
 }
 
+// Mul
 impl<T: Mul<Output = T>, U> Mul for Node<T, U> {
     type Output = Self;
 
@@ -67,6 +70,7 @@ impl<T: Mul<Output = T>, U> Mul for Node<T, U> {
     }
 }
 
+// Div
 impl<T: Div<Output = T>, U> Div for Node<T, U> {
     type Output = Self;
 
@@ -102,5 +106,5 @@ fn main() {
     a = x + y;
 
     println!("data: {}, grad: {}", a.data, a.grad);
-    print_type(&a.data);
+    print_type(&a);
 }
