@@ -13,7 +13,7 @@ However, to minimize performance penalties, Mesh uses optimized libraries for ea
 ## Roadmap
 
 Software support for (in order):
-- Rust (under development)
+- C (under development)
 - python
 - Micrograd
 - Tinygrad
@@ -21,8 +21,8 @@ Software support for (in order):
 - XLA
 
 Hardware library support for (in order):
+- NVIDIA CUDA (under development)
 - Intel OneAPI
-- NVIDIA CUDA
 - WASM + WebGPU
 - Cloud Platforms (AWS, Azure, GCP, other)
 - Vulkan compute
