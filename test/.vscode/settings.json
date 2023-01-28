@@ -1,0 +1,5 @@
+{
+    "files.associations": {
+        "cuda_ops.h": "c"
+    }
+}
