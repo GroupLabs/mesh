@@ -25,6 +25,7 @@ void * loadCudaLibrary() {
 #endif
 }
 
+
 void (*getProcAddress(void * lib, const char *name))(void){
 #ifdef WINDOWS
     return (void (*)(void)) GetProcAddress(lib, name);
@@ -41,6 +42,13 @@ int freeLibrary(void *lib)
     return dlclose(lib);
 #endif
 }
+
+
+
+
+
+
+
 
 #if CUDAEXISTS
 
