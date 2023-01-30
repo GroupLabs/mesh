@@ -3,8 +3,6 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#include <stdio.h>
-
 // Single device 
 struct Device {
     long int device_id; // auto-assigned device_id

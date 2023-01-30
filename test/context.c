@@ -6,7 +6,6 @@
 #define DEBUG 1
 
 #if DEBUG
-#define CUDA_enabled 1
 #include <stdio.h>
 #endif
 
@@ -19,9 +18,6 @@
 #include "MKL_ops.h"
 #endif
 
-// 
-
-
 // config
 // Takes in pointer to mesh
 // initializes it with
@@ -29,14 +25,14 @@
 // 2. etc
 void config(struct Mesh* mesh_ptr){
 
-    //initialize mesh object with null values
+    // initialize mesh object with null values
     Mesh_new(mesh_ptr);
 
     // get naturally available devices
     natural_config(mesh_ptr);
 
     // get all devices in device_list
-    #ifdef CUDA_enabled
+    #if CUDA_enabled
 
     
     printf("\nCUDA is enabled\n");
@@ -97,39 +93,14 @@ void scheduler()
 
 #if DEBUG
 
+// Only exists to debug vals
 int main(){
 
     struct Mesh mesh;
 
-    
-
     config(&mesh);
 
-    printf("Built and configed mesh object");
-
-    printf("\n\nDevice count: %d\n\n\n", mesh.device_list.device_count);
-
-    for(int i = 0; i < 3; i++){
-
-        printf("Device ID: %ld\n", mesh.device_list.device_map[i].device_id);
-        printf("Active thread ID: %ld\n", mesh.device_list.device_map[i].thread_id);
-        printf("API ID: %s\n", mesh.device_list.device_map[i].api_id);
-
-        printf("Type: %s\n\n", mesh.device_list.device_map[i].type);
-    }
-}
-
-#else
-
-int main(){
-
-    struct Mesh mesh;
-
-    
-
-    config(&mesh);
-
-    printf("Built mesh object");
+    printf("\nBuilt mesh object");
 
     printf("\n\nDevice count: %d\n\n\n", mesh.device_list.device_count);
 

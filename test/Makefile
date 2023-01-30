@@ -26,6 +26,25 @@
 # #define CUDA_EXISTS 1
 # #endif
 
+CC := gcc
+CCFLAGS := -ldl -O2
+
+
+
+
+
+NVCC_RESULT := $(shell which nvcc 2> NULL)
+NVCC_TEST := $(notdir $(NVCC_RESULT))
+ifeq ($(NVCC_TEST),nvcc)
+    CUDA_enabled := 1
+    CCFLAGS+= -D CUDA_enabled
+else
+    CUDA_enabled := 0
+    CCFLAGS+= -D CUDA_enabled=0
+endif
+
+# test:
+#     @echo $(CC)
 
 OS_DET=UNKNOWN
 CPU_DET=UNKNOWN
@@ -68,11 +87,11 @@ else
     endif
 endif
 
-check_os_arch:
-	echo OS:  $(OS_DET) ARCH: $(CPU_DET)
+check_host:
+	@printf "OS: $(OS_DET) \nARCH: $(CPU_DET) \nCUDA_enabled: $(CUDA_enabled)\n"
 
-mesh: main.c
-	gcc -ldl main.c
+mesh: context.c
+	$(CC) $(CCFLAGS) context.c 
 	./a.out
 
 
@@ -82,8 +101,8 @@ mesh: main.c
 mesh.txt: mesh
 	./a.out > mesh.txt
 
-hello: hello.cu
+hello_cuda: hello.cu
 	nvcc hello.cu -o hello
 
 clean:
-	rm *.txt
+	rm *.txt a.out NULL
