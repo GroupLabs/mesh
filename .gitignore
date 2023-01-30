@@ -1,3 +1,9 @@
 autodiff/target/
 
 noel/*
+
+test/out.txt
+test/NULL
+test/a.out
+
+.vscode/

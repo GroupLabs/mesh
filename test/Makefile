@@ -1,51 +1,22 @@
-# Builds mesh based on OS, and ARCH
+# Builds mesh based on OS, ARCH, and known devices
 
-# https://github.com/wolfSSL/wolfssl-examples/blob/master/tls/Makefile
-
-
-
-
-# ALL configs should happen in makefile to keep binaries as small as possible!
-# Objectives:
-# Find arch, os
-# Find cuda-capability
-# Use cmd line flags to set Macros to inform context
-# Conditionally add libraries that provide Mesh support for different APIs
-
-## IN CONTEXT
-# Use preprocessor directives (with the macros defined in cmdline args) to conditionally include header files
-# Make header file that includes support for each API (No CUDA, MKL, etc. code in context!!)
-# context should provide an api that selects the device to run on
-
-
-
-
-# // https://stackoverflow.com/questions/142877/can-the-c-preprocessor-be-used-to-tell-if-a-file-exists
-# #if __has_include("cuda.h")
-# #include <cuda.h>
-# #define CUDA_EXISTS 1
-# #endif
-
+# Set compiler, and base flags
 CC := gcc
 CCFLAGS := -ldl -O2
 
-
-
-
-
+# Check for CUDA, and set CUDA_enabled flag
+# This could be extended to support cuda runtime
 NVCC_RESULT := $(shell which nvcc 2> NULL)
 NVCC_TEST := $(notdir $(NVCC_RESULT))
 ifeq ($(NVCC_TEST),nvcc)
     CUDA_enabled := 1
-    CCFLAGS+= -D CUDA_enabled
+    CCFLAGS+= -D CUDA_enabled=1
 else
     CUDA_enabled := 0
     CCFLAGS+= -D CUDA_enabled=0
 endif
 
-# test:
-#     @echo $(CC)
-
+# Determine OS and architecture
 OS_DET=UNKNOWN
 CPU_DET=UNKNOWN
 
@@ -87,22 +58,25 @@ else
     endif
 endif
 
+# Get OS, and CPU architecture of host
 check_host:
-	@printf "OS: $(OS_DET) \nARCH: $(CPU_DET) \nCUDA_enabled: $(CUDA_enabled)\n"
+	@echo "OS: $(OS_DET)"
+	@echo "ARCH: $(CPU_DET)"
+	@echo "CUDA_enabled: $(CUDA_enabled)"
+	@rm NULL 
+    # Not sure what's producing this NULL file
 
-mesh: context.c
-	$(CC) $(CCFLAGS) context.c 
-	./a.out
+# Build and run test
+test: test.c
+	$(CC) $(CCFLAGS) test.c 
+	./a.out > out.txt
+	cat out.txt
+
+# Clean up
+clean:
+	rm out.txt a.out NULL
 
 
-
-
-
-mesh.txt: mesh
-	./a.out > mesh.txt
-
+## CUDA TESTS
 hello_cuda: hello.cu
 	nvcc hello.cu -o hello
-
-clean:
-	rm *.txt a.out NULL
