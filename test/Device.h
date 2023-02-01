@@ -13,21 +13,8 @@ struct Device {
 
     // METADATA
     char type[8]; // Specifies the type of device [CPU, GPU, etc.]
+    int rank;
 };
-
-// Just a thought -> Should we have different objects for different devices?
-
-// #ifdef CUDA_enabled
-// // CUDA Device
-// struct CUDA_Device {
-//     long int device_id; // auto-assigned device_id
-//     long int thread_id; // thread_id on device if exists, else -1
-//     char api_id[5]; // API ID [CUDA, MKL, etc.]
-
-//     // METADATA
-//     char type[8]; // Specifies the type of device [CPU, GPU, etc.]
-// };
-// #endif
 
 // collection of devices
 struct DeviceList {

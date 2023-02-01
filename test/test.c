@@ -1,24 +1,47 @@
 #include <stdio.h>
-#include "Mesh.h"
+// #include "Mesh.h"
+
+struct testA{
+    int a;
+    int b;
+};
+
+struct testB{
+    long int c;
+    int d;
+};
 
 // Only exists to debug vals
 int main(){
 
-    struct Mesh mesh;
+    struct testA G = {1, 2};
 
-    config(&mesh);
+    struct testB F = {3, 4};
 
-    printf("\nBuilt mesh object");
+    void * ptrA = &G;
 
-    printf("\n\nDevice count: %d\n\n", mesh.device_list.device_count);
+    struct testB * ptrB = &F;
 
-    for(int i = 0; i < 3; i++){
+   void * ptrArray[2] = {&G, &F};
 
-        printf("Device ID: %ld\n", mesh.device_list.device_map[i].device_id);
-        printf("Active thread ID: %ld\n", mesh.device_list.device_map[i].thread_id);
-        printf("API ID: %s\n", mesh.device_list.device_map[i].api_id);
+   printf("%ld", G.a);
 
-        printf("Type: %s\n\n", mesh.device_list.device_map[i].type);
-    }
+
+    // struct Mesh mesh;
+
+    // config(&mesh);
+
+    // printf("\nBuilt mesh object");
+
+    // printf("\n\nDevice count: %d\n\n", mesh.device_list.device_count);
+
+    // for(int i = 0; i < 3; i++){
+
+    //     printf("Device ID: %ld\n", mesh.device_list.device_map[i].device_id);
+    //     printf("Active thread ID: %ld\n", mesh.device_list.device_map[i].thread_id);
+    //     printf("API ID: %s\n", mesh.device_list.device_map[i].api_id);
+
+    //     printf("Type: %s\n\n", mesh.device_list.device_map[i].type);
+    // }
 
 }
