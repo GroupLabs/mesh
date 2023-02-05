@@ -79,3 +79,16 @@ void config(struct Mesh* mesh_ptr){
 
 
 #endif
+
+
+
+
+
+
+
+
+// IDEAS
+
+// We can have collections of devices (for each type) in DeviceList
+// We can have a collection of DeviceLists (for each type) in Mesh
+// We can assimilate all devices to one type of Device

@@ -5,10 +5,14 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
+
+// All the char arrays in Device should be integer enums
+
+
 // single generic device 
 struct Device {
-    long int device_id; // auto-assigned device_id
-    long int thread_id; // thread_id on device if exists, else -1
+    int device_id; // auto-assigned device_id
+    int thread_id; // thread_id on device if exists, else -1
     char api_id[5]; // API ID [CUDA, MKL, etc.]
 
     // METADATA
@@ -21,6 +25,22 @@ struct DeviceList {
     int device_count; // number of devices in device_list
     
     struct Device device_map[5]; // list of devices, hashmap? https://github.com/tidwall/hashmap.c
+
+
+    #ifdef CUDA_enabled
+
+    // Build an array of CUDA devices
+
+    // Get pointer to that array, and store in 
+
+
+    #endif
+
+
+
+
+
+
 };
 
 // nullifies existing object, or initalizes new DeviceList object

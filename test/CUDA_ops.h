@@ -18,7 +18,8 @@
 // #define CUDA_EXISTS 1
 // #endif
 
-
+// Check if CUDA is available
+// https://stackoverflow.com/questions/15860390/program-to-check-cuda-presence-needs-cuda
 
 // Enables dynamic linking
 #ifdef WINDOWS
