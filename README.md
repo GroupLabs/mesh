@@ -10,6 +10,41 @@ The next generation of chips will be custom-tuned to specific use cases. Having 
 
 However, to minimize performance penalties, Mesh uses optimized libraries for each vendor.
 
+## How it Works
+
+```mermaid
+flowchart BT  
+  subgraph Mesh[Mesh]
+   direction BT
+   subgraph DeviceList
+   end
+  end
+  
+  NTRL_OPS[Natural Ops] --> DeviceList
+  CUDA_OPS[CUDA Ops] --> DeviceList 
+```
+
+Mesh essentially works as a translation layer between an application (Tensorflow / PyTorch / etc.) and logical devices (or other HALs). In the current implementation, we use preprocessor directives to conditionally compile anything related to CUDA. 
+
+Mesh is a data struct that holds information about the available devices (in the DeviceList struct). To populate the Mesh object, we invoke the config function. This function decides what kind of devices are available and call appropriate config functions. 
+
+Natural config is fake - we're assuming a CPU is compiling the program. It should be removed in the future.
+
+CUDA config gets the number of CUDA devices, and other information and attempts to append information to DeviceList.
+
+### How to Use
+
+To check your OS, arch, if CUDA exists:
+
+`make check_host`
+
+To see if Mesh is being properly configured:
+
+`make test`
+
+This just runs test.c which right now prints out everything in DeviceList.
+
+
 ## Roadmap
 
 Software support for (in order):
