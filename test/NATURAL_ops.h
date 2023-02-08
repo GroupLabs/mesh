@@ -5,16 +5,22 @@
 
 #include "Mesh.h"
 
+    int device_id; // auto-assigned device_id
+    int thread_id; // thread_id on device if exists, else -1
+    char api_id[5]; // API ID [CUDA, MKL, etc.]
+
+    // METADATA
+    char type[8]; // Specifies the type of device [CPU, GPU, etc.]
+    int rank;
+
 void natural_config(struct Mesh *mesh_ptr){
     // Set natural API
     mesh_ptr->available_apis[0] = -1; // Should find available slot, then assign
 
-    // Increment device_count
-    mesh_ptr->device_list.device_count += 1;
-
     // Add device to device_list
-    struct Device natural_device = { 0, -1, "NTRL", "CPU"}; // Literally just guessing it's CPU
-    mesh_ptr->device_list.device_map[0] = natural_device; // should not assign to hardcoded index
+    Device natural_device = { 0, -1, "NTRL", "CPU", 0}; // Literally just guessing it's CPU
+
+    set_vector(*(mesh_ptr->device_list.devices), 1, natural_device); // should not assign to hardcoded index
 }
 
 #endif

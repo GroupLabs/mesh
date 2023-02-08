@@ -35,13 +35,13 @@ int main(){
 
     printf("\n\nDevice count: %d\n\n", mesh.device_list.device_count);
 
-    for(int i = 0; i < 3; i++){
+    // for(int i = 0; i < 3; i++){
 
-        printf("Device ID: %ld\n", mesh.device_list.device_map[i].device_id);
-        printf("Active thread ID: %ld\n", mesh.device_list.device_map[i].thread_id);
-        printf("API ID: %s\n", mesh.device_list.device_map[i].api_id);
+    //     printf("Device ID: %ld\n", mesh.device_list.device_map[i].device_id);
+    //     printf("Active thread ID: %ld\n", mesh.device_list.device_map[i].thread_id);
+    //     printf("API ID: %s\n", mesh.device_list.device_map[i].api_id);
 
-        printf("Type: %s\n\n", mesh.device_list.device_map[i].type);
-    }
+    //     printf("Type: %s\n\n", mesh.device_list.device_map[i].type);
+    // }
 
 }

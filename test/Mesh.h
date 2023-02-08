@@ -5,6 +5,8 @@
 #ifndef MESH_H
 #define MESH_H
 
+#define NUM_INITIAL_ELEMENTS 3
+
 #include "Device.h"
 
 struct Mesh{
@@ -16,7 +18,7 @@ struct Mesh{
     // 2 - OneAPI
 
 
-    struct DeviceList device_list;
+    DeviceList device_list;
 };
 
 // nullifies existing object, or initalizes new Mesh object
@@ -26,7 +28,7 @@ void Mesh_new(struct Mesh * mesh_ptr){
 
     // mesh_ptr->available_apis[0] // might be initialized differently if we change DS
 
-    DeviceList_new(&(mesh_ptr->device_list));
+    mesh_ptr->device_list = *DeviceList_new(NUM_INITIAL_ELEMENTS);
 }
 
 // import ops for enabled apis
