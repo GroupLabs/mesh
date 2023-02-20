@@ -20,6 +20,8 @@ typedef struct {
     int rank;
 } Device;
 
+
+
 // collection of devices
 typedef struct {
     int device_count; // number of devices in device_list

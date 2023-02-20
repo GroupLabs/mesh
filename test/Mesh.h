@@ -5,7 +5,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#define NUM_INITIAL_ELEMENTS 3
+#define NUM_INITIAL_ELEMENTS 1
 
 #include "Device.h"
 
@@ -18,7 +18,7 @@ struct Mesh{
     // 2 - OneAPI
 
 
-    DeviceList device_list;
+    DeviceList* device_list;
 };
 
 // nullifies existing object, or initalizes new Mesh object
@@ -28,7 +28,7 @@ void Mesh_new(struct Mesh * mesh_ptr){
 
     // mesh_ptr->available_apis[0] // might be initialized differently if we change DS
 
-    mesh_ptr->device_list = *DeviceList_new(NUM_INITIAL_ELEMENTS);
+    mesh_ptr->device_list = DeviceList_new(NUM_INITIAL_ELEMENTS);
 }
 
 // import ops for enabled apis
@@ -83,14 +83,3 @@ void config(struct Mesh* mesh_ptr){
 #endif
 
 
-
-
-
-
-
-
-// IDEAS
-
-// We can have collections of devices (for each type) in DeviceList
-// We can have a collection of DeviceLists (for each type) in Mesh
-// We can assimilate all devices to one type of Device

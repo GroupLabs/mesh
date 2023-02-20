@@ -20,7 +20,7 @@ void natural_config(struct Mesh *mesh_ptr){
     // Add device to device_list
     Device natural_device = { 0, -1, "NTRL", "CPU", 0}; // Literally just guessing it's CPU
 
-    set_vector(*(mesh_ptr->device_list.devices), 1, natural_device); // should not assign to hardcoded index
+    set_vector(mesh_ptr->device_list, 1, natural_device); // should not assign to hardcoded index
 }
 
 #endif

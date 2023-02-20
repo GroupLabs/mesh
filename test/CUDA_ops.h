@@ -105,9 +105,6 @@ int CUDA_config(struct Mesh* mesh_ptr){
             // Add device to device_list
             struct Device CUDA_device = { i+1, -1, "CUDA", "GPU"}; // Literally just guessing it's GPU
             mesh_ptr->device_list.device_map[i+1] = CUDA_device; // should not assign to hardcoded index
-    
-
-
 
             int major, minor;
             if (CUDA_SUCCESS != my_cuDeviceComputeCapability(&major, &minor, i))
