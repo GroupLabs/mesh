@@ -38,7 +38,11 @@ DeviceList *DeviceList_new(size_t n) {
     if(p) {
         p->devices = (Device*)malloc(n * sizeof(Device));
         p->device_count = n;
+    } else {
+        printf("Memmory allocation error Device list new");
     }
+
+    free(p);
     return p;
 }
 
@@ -50,7 +54,10 @@ size_t resize_vector(DeviceList *v, size_t n) {
             v->device_count = n;
         }
         return v->device_count;
+    } else {
+        printf("Memmory allocation error resize vector");
     }
+
     return 0;
 }
 
@@ -60,6 +67,8 @@ void set_vector(DeviceList *v, size_t n, Device x) {
             resize_vector(v, n);
         }
         v->devices[n] = x;
+    } else {
+        printf("Memmory allocation error set vector");
     }
 }
 
