@@ -23,8 +23,6 @@ void natural_config(struct Mesh *mesh_ptr){
     #endif
 
     add_device(mesh_ptr->device_list, natural_device);
-    add_device(mesh_ptr->device_list, natural_device);
-    add_device(mesh_ptr->device_list, natural_device);
 }
 
 #endif

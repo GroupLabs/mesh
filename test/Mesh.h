@@ -75,7 +75,9 @@ void config(struct Mesh* mesh_ptr){
     // representative at run time.
 }
 
-
+void free_mesh(struct Mesh* mesh_ptr){
+    free_devicelist(mesh_ptr->device_list);
+}
 
 
 

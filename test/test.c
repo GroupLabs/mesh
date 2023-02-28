@@ -17,9 +17,10 @@ int main(){
     for(int i = 0; i < device_count; i++){
 
         printf("Device ID: %d\n", mesh.device_list->devices[i].device_id);
-        printf("Active thread ID: %d\n", mesh.device_list->devices[i].thread_id);
+        printf("Thread ID: %d\n", mesh.device_list->devices[i].thread_id);
         printf("API ID: %s\n", mesh.device_list->devices[i].api_id);
         printf("Type: %s\n\n", mesh.device_list->devices[i].type);
     }
 
+    free_mesh(&mesh);
 }

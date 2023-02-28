@@ -130,53 +130,6 @@ int CUDA_config(struct Mesh* mesh_ptr){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-// int main() {
-//     void * cuLib;
-
-//     if(CUDA_EXISTS){
-//     cuInit_pt my_cuInit = NULL;
-//     cuDeviceGetCount_pt my_cuDeviceGetCount = NULL;
-//     cuDeviceComputeCapability_pt my_cuDeviceComputeCapability = NULL;
-
-
-//     {
-//         int count, i;
-//         if (CUDA_SUCCESS != my_cuInit(0))
-//             return 1; // failed to initialize
-//         if (CUDA_SUCCESS != my_cuDeviceGetCount(&count))
-//             return 1; // failed
-
-//         for (i = 0; i < count; i++)
-//         {
-//             int major, minor;
-//             if (CUDA_SUCCESS != my_cuDeviceComputeCapability(&major, 
-// &minor, i))
-//                 return 1; // failed
-
-//             printf("dev %d CUDA compute capability major %d minor %d\n", 
-// i, major, minor);
-//         }
-//     }
-//     freeLibrary(cuLib);
-//     return 0;
-//     }
-//     else{
-//         printf("No CUDA")
-//     }
-// }
-
 #endif
 
 #endif

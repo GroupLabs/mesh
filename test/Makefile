@@ -75,8 +75,3 @@ test: test.c
 # Clean up
 clean:
 	rm out.txt a.out NULL
-
-
-## CUDA TESTS
-hello_cuda: hello.cu
-	nvcc hello.cu -o hello

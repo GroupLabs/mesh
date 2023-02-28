@@ -1,26 +1,23 @@
 // Device.h
-#include <stdlib.h> // check size vs stddef.h
 // Device manages each known device, and information on how to communicate.
 
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#define API_ID_LEN 6
-// All the char arrays in Device should be integer enums
+#include <stdlib.h> // check size vs stddef.h
 
+#define API_ID_LEN 6
 
 // single generic device 
 typedef struct {
-    char api_id[6]; // API ID [CUDA, MKL, etc.]
-    char type[8]; // Specifies the type of device [CPU, GPU, etc.]
+    char api_id[API_ID_LEN]; // API ID [CUDA, MKL, etc.]
 
+    char type[8]; // Specifies the type of device [CPU, GPU, etc.]
     int rank; // rank of device
 
     int device_id; // auto-assigned device_id
     int thread_id; // thread_id on device if exists, else -1
 } Device;
-
-
 
 // collection of devices
 typedef struct {
@@ -42,11 +39,10 @@ DeviceList *new_devicelist(size_t n) {
         printf("Memmory allocation error Device list new");
     }
 
-    // free(p);
     return p;
 }
 
-size_t resize_devicelist(DeviceList *v, size_t n) {
+size_t resize_devicelist(DeviceList *v, size_t n) { // resize device list
     if(v) {
         Device *p = (Device*)realloc(v->devices, n * sizeof(Device));
         if(p) {
@@ -61,18 +57,18 @@ size_t resize_devicelist(DeviceList *v, size_t n) {
     return 0;
 }
 
-void set_device(DeviceList *v, size_t n, Device x) {
+void set_device(DeviceList *v, Device x, size_t index) { // set device at index
     if(v) {
-        if(n >= v->device_count) {
-            resize_devicelist(v, n);
+        if(index >= v->device_count) {
+            resize_devicelist(v, index);
         }
-        v->devices[n] = x;
+        v->devices[index] = x;
     } else {
         printf("Memmory allocation error set vector");
     }
 }
 
-void add_device(DeviceList *v, Device x) {
+void add_device(DeviceList *v, Device x) { // add device to end of list
     if(v) {
 
         resize_devicelist(v, v->device_count + 1);
@@ -86,7 +82,12 @@ void add_device(DeviceList *v, Device x) {
     }
 }
 
-
+void free_devicelist(DeviceList *v) { // free device list
+    if(v) {
+        free(v->devices);
+        free(v);
+    }
+}
 
 
 // multithreaded scheduler to assign tasks to different devices
