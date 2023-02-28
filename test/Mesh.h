@@ -5,7 +5,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#define NUM_INITIAL_ELEMENTS 1
+#define NUM_INITIAL_ELEMENTS 0
 
 #include "Device.h"
 
@@ -24,11 +24,11 @@ struct Mesh{
 // nullifies existing object, or initalizes new Mesh object
 // Accepts: pointer to a Mesh struct
 // Returns: void; pointer is now pointing to intialized (null) Mesh object
-void Mesh_new(struct Mesh * mesh_ptr){
+void new_mesh(struct Mesh * mesh_ptr){
 
     // mesh_ptr->available_apis[0] // might be initialized differently if we change DS
 
-    mesh_ptr->device_list = DeviceList_new(NUM_INITIAL_ELEMENTS);
+    mesh_ptr->device_list = new_devicelist(NUM_INITIAL_ELEMENTS);
 }
 
 // import ops for enabled apis
@@ -47,7 +47,7 @@ void Mesh_new(struct Mesh * mesh_ptr){
 void config(struct Mesh* mesh_ptr){
 
     // initialize mesh object with null values
-    Mesh_new(mesh_ptr);
+    new_mesh(mesh_ptr);
 
     // get naturally available devices
     natural_config(mesh_ptr);
