@@ -99,9 +99,6 @@ int CUDA_config(struct Mesh* mesh_ptr){
             mesh_ptr->available_apis[i+1] = 1; // Should find available slot, then assign (this just adds after first index REELLY BAD)
             // Also should only add if doesn't exist HASHMAP??
 
-            // Increment device_count
-            mesh_ptr->device_list.device_count += 1; // Should be incremented directly form get cuDeviceGetCount
-
             // Add device to device_list
             struct Device CUDA_device = { i+1, -1, "CUDA", "GPU"}; // Literally just guessing it's GPU
             mesh_ptr->device_list.device_map[i+1] = CUDA_device; // should not assign to hardcoded index
