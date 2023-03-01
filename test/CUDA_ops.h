@@ -98,9 +98,9 @@ int CUDA_config(struct Mesh* mesh_ptr){
             // Also should only add if doesn't exist HASHMAP??
 
             // Add device to device_list
-            struct Device CUDA_device = {"CUDA", "GPU", 0}; // Literally just guessing it's GPU
+            Device CUDA_device = {"CUDA", "GPU", 0}; // Literally just guessing it's GPU
             
-            add_vector(mesh_ptr->device_list, CUDA_device); // should not assign to hardcoded index
+            add_device(mesh_ptr->device_list, CUDA_device); // should not assign to hardcoded index
 
             int major, minor;
             if (CUDA_SUCCESS != my_cuDeviceComputeCapability(&major, &minor, i))

@@ -6,7 +6,7 @@
 
 #include <stdlib.h> // check size vs stddef.h
 
-#define API_ID_LEN 6
+#define API_ID_LEN 7
 
 // single generic device 
 typedef struct {

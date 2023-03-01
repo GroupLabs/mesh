@@ -10,16 +10,16 @@ void natural_config(struct Mesh *mesh_ptr){
     mesh_ptr->available_apis[0] = -1; // Should find available slot, then assign
 
     // Add device to device_list
-    Device natural_device = {"NTRL", "CPU", 0}; // Literally just guessing it's CPU
+    Device natural_device = {"UNKNOWN", "CPU", 0}; // Literally just guessing it's CPU
 
     #ifdef AMD64
-        strlcpy(natural_device.api_id, "AMD64", API_ID_LEN);
+        copy_str(natural_device.api_id, "AMD64", API_ID_LEN);
     #endif
     #ifdef IA32
-        strlcpy(natural_device.api_id, "IA32", API_ID_LEN);
+        copy_str(natural_device.api_id, "IA32", API_ID_LEN);
     #endif
     #ifdef ARM
-        strlcpy(natural_device.api_id, "ARM", API_ID_LEN);
+        copy_str(natural_device.api_id, "ARM", API_ID_LEN);
     #endif
 
     add_device(mesh_ptr->device_list, natural_device);

@@ -3,7 +3,9 @@
 
 #include <string.h>
 
-size_t strlcpy(char *dst, const char *src, size_t dstsize)
+// Some compilers don't have strlcpy() so our own version is provided:
+
+size_t copy_str(char *dst, const char *src, size_t dstsize)
 {
   size_t len = strlen(src);
   if(dstsize) {
