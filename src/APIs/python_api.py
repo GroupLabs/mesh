@@ -4,7 +4,6 @@ import ctypes
 math_lib = ctypes.CDLL('libm.so.6')
 mesh_lib = ctypes.CDLL('shared_lib/libmylib.so')
 
-
 # Define the function signatures
 math_lib.cos.argtypes = [ctypes.c_double]
 math_lib.cos.restype = ctypes.c_double

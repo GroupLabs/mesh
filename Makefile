@@ -67,8 +67,8 @@ check_host:
     # Not sure what's producing this NULL file
 
 # Build and run test
-test: src/test.c
-	$(CC) $(CCFLAGS) src/test.c 
+test:
+	$(CC) -Wall src/test.c src/Mesh.c src/Device.c src/utils/String_H.c src/ops/CUDA_ops.c src/ops/NATURAL_ops.c -o a.out $(CCFLAGS)
 	@./a.out > out.txt
 	@cat out.txt
 
@@ -82,7 +82,7 @@ find_headers:
 	find src -name "*.h"
 
 api:
-	mkdir -p objectfiles
+	@mkdir -p objectfiles
 	gcc -c -fPIC src/ops/CUDA_ops.h -o objectfiles/CUDA_ops.o
 	gcc -c -fPIC src/ops/NATURAL_ops.h -o objectfiles/NATURAL_ops.o
 	gcc -c -fPIC src/Device.h -o objectfiles/Device.o

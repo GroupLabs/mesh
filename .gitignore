@@ -1,6 +1,7 @@
 # Removing executables
 autodiff/target/
-Mesh.so
+*.so
+*.o
 
 # Removing byproducts
 out.txt
