@@ -5,9 +5,9 @@
 #include "../Mesh.h"
 #include "../utils/String_H.h"
 
-void natural_config(struct Mesh *mesh_ptr){
+void natural_config(Mesh *mesh_ptr){
     // Set natural API
-    mesh_ptr->available_apis[0] = -1; // Should find available slot, then assign
+    // mesh_ptr->available_apis[0] = -1; // Should find available slot, then assign
 
     // Add device to device_list
     Device natural_device = {"UNKNOWN", "CPU", 0}; // Literally just guessing it's CPU

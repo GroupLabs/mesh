@@ -59,7 +59,7 @@ typedef CUresult CUDAAPI (*cuDeviceComputeCapability_pt)(int *major, int
 *minor, CUdevice dev);
 
 
-int CUDA_config(struct Mesh* mesh_ptr){
+int CUDA_config(Mesh* mesh_ptr){
 
     void * cuLib;
     cuInit_pt my_cuInit = NULL;

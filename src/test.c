@@ -4,7 +4,7 @@
 // Only exists to debug vals
 int main(){
 
-    struct Mesh mesh;
+    Mesh mesh;
 
     config(&mesh);
 
