@@ -21,7 +21,6 @@ typedef struct {
     DeviceList* device_list;
 } Mesh;
 
-
 // initalizes new Mesh object
 // Accepts: void
 // Returns: pointer to a Mesh struct

@@ -68,7 +68,7 @@ check_host:
 
 # Build and run test
 test:
-	$(CC) -Wall src/test.c src/Mesh.c src/Device.c src/utils/String_H.c src/ops/CUDA_ops.c src/ops/NATURAL_ops.c -o a.out $(CCFLAGS)
+	$(CC) src/test.c src/Mesh.c src/Device.c src/utils/String_H.c src/ops/CUDA_ops.c src/ops/NATURAL_ops.c -o a.out $(CCFLAGS)
 	@./a.out > out.txt
 	@cat out.txt
 
@@ -78,24 +78,8 @@ apitest:
 
 	gcc -shared src/APIs/testfile1.o src/APIs/testfile2.o -o src/APIs/shared_lib/libmylib.so
 
-find_headers:
-	find src -name "*.h"
-
 api:
-	@mkdir -p objectfiles
-	gcc -c -fPIC src/ops/CUDA_ops.h -o objectfiles/CUDA_ops.o
-	gcc -c -fPIC src/ops/NATURAL_ops.h -o objectfiles/NATURAL_ops.o
-	gcc -c -fPIC src/Device.h -o objectfiles/Device.o
-	gcc -c -fPIC src/Mesh.h -o objectfiles/Mesh.o
-	gcc -c -fPIC src/utils/String_H.h -o objectfiles/String_H.o
-
-	gcc -shared objectfiles/Mesh.o objectfiles/String_H.o objectfiles/CUDA_ops.o objectfiles/NATURAL_ops.o objectfiles/Device.o -o src/APIs/shared_lib/meshlib.so
-
-# $ gcc -shared -Wl,-soname,testlib -o testlib.so -fPIC testlib.c
-
-# # or... for Mac OS X 
-# $ gcc -shared -Wl,-install_name,testlib.so -o testlib.so -fPIC testlib.c
-# https://stackoverflow.com/questions/5081875/ctypes-beginner
+	$(CC) -shared src/Mesh.c src/Device.c src/utils/String_H.c src/ops/CUDA_ops.c src/ops/NATURAL_ops.c -o src/APIs/shared_lib/meshlib.so
 
 clean_api:
 	rm -f src/APIs/shared_lib/*.so src/APIs/*.o
