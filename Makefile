@@ -72,9 +72,34 @@ test: src/test.c
 	./a.out > out.txt
 	cat out.txt
 
+apitest:
+	gcc -c -fPIC ctest.c -o testfile1.o
+	gcc -c -fPIC ctesthello.c -o testfile2.o
+
+	gcc -shared testfile1.o testfile2.o -o src/APIs/shared_lib/libmylib.so
+
+find_headers:
+	find src -name "*.h"
+
 api:
-	cc -fPIC -shared -o Mesh.so src/Mesh.h
+	mkdir -p objectfiles
+	gcc -c -fPIC src/ops/CUDA_ops.h -o objectfiles/CUDA_ops.o
+	gcc -c -fPIC src/ops/NATURAL_ops.h -o objectfiles/NATURAL_ops.o
+	gcc -c -fPIC src/Device.h -o objectfiles/Device.o
+	gcc -c -fPIC src/Mesh.h -o objectfiles/Mesh.o
+	gcc -c -fPIC src/utils/String_H.h -o objectfiles/String_H.o
+
+	gcc -shared objectfiles/Mesh.o objectfiles/String_H.o objectfiles/CUDA_ops.o objectfiles/NATURAL_ops.o objectfiles/Device.o -o src/APIs/shared_lib/meshlib.so
+
+rmapi:
+	rm src/APIs/shared_lib/meshlib.so
+
+# $ gcc -shared -Wl,-soname,testlib -o testlib.so -fPIC testlib.c
+
+# # or... for Mac OS X 
+# $ gcc -shared -Wl,-install_name,testlib.so -o testlib.so -fPIC testlib.c
+# https://stackoverflow.com/questions/5081875/ctypes-beginner
 
 # Clean up
 clean:
-	rm out.txt a.out NULL
+	rm -f out.txt a.out NULL *.o src/APIs/shared_lib/libmylib.so

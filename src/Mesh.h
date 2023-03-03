@@ -9,6 +9,7 @@
 
 #include "Device.h"
 
+
 typedef struct {
     // int available_apis[3]; // Should be some other DS - 2D char array requires strncopy, hashmap?
     // For now, 
@@ -21,14 +22,20 @@ typedef struct {
     DeviceList* device_list;
 } Mesh;
 
-// nullifies existing object, or initalizes new Mesh object
-// Accepts: pointer to a Mesh struct
-// Returns: void; pointer is now pointing to intialized (null) Mesh object
-void new_mesh(Mesh * mesh_ptr){
 
-    // mesh_ptr->available_apis[0] // might be initialized differently if we change DS
+// initalizes new Mesh object
+// Accepts: void
+// Returns: pointer to a Mesh struct
+Mesh* new_mesh(){
+    Mesh *mesh_ptr = (Mesh*)malloc(sizeof(Mesh));
 
-    mesh_ptr->device_list = new_devicelist(NUM_INITIAL_ELEMENTS);
+    if(mesh_ptr){
+        mesh_ptr->device_list = new_devicelist(NUM_INITIAL_ELEMENTS);
+    } else {
+        // printf("Memmory allocation error Mesh new");
+    }
+
+    return mesh_ptr;
 }
 
 // import ops for enabled apis
@@ -40,14 +47,13 @@ void new_mesh(Mesh * mesh_ptr){
 #include "ops/MKL_ops.h"
 #endif
 
+void natural_config(Mesh *mesh_ptr);
+
 // config initializes a mesh object, and populates it with
 // information about known devices and device apis
 // Accepts: pointer to a Mesh struct
 // Returns: void; pointer is now pointing to configured Mesh object
 void config(Mesh* mesh_ptr){
-
-    // initialize mesh object with null values
-    new_mesh(mesh_ptr);
 
     // get naturally available devices
     natural_config(mesh_ptr);
@@ -75,11 +81,11 @@ void config(Mesh* mesh_ptr){
     // representative at run time.
 }
 
+
+
 void free_mesh(Mesh* mesh_ptr){
     free_devicelist(mesh_ptr->device_list);
 }
-
-
 
 
 #endif
