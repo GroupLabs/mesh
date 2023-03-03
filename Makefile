@@ -69,14 +69,14 @@ check_host:
 # Build and run test
 test: src/test.c
 	$(CC) $(CCFLAGS) src/test.c 
-	./a.out > out.txt
-	cat out.txt
+	@./a.out > out.txt
+	@cat out.txt
 
 apitest:
-	gcc -c -fPIC ctest.c -o testfile1.o
-	gcc -c -fPIC ctesthello.c -o testfile2.o
+	gcc -c -fPIC src/APIs/ctest.c -o src/APIs/testfile1.o
+	gcc -c -fPIC src/APIs/ctesthello.c -o src/APIs/testfile2.o
 
-	gcc -shared testfile1.o testfile2.o -o src/APIs/shared_lib/libmylib.so
+	gcc -shared src/APIs/testfile1.o src/APIs/testfile2.o -o src/APIs/shared_lib/libmylib.so
 
 find_headers:
 	find src -name "*.h"
@@ -91,15 +91,19 @@ api:
 
 	gcc -shared objectfiles/Mesh.o objectfiles/String_H.o objectfiles/CUDA_ops.o objectfiles/NATURAL_ops.o objectfiles/Device.o -o src/APIs/shared_lib/meshlib.so
 
-rmapi:
-	rm src/APIs/shared_lib/meshlib.so
-
 # $ gcc -shared -Wl,-soname,testlib -o testlib.so -fPIC testlib.c
 
 # # or... for Mac OS X 
 # $ gcc -shared -Wl,-install_name,testlib.so -o testlib.so -fPIC testlib.c
 # https://stackoverflow.com/questions/5081875/ctypes-beginner
 
+clean_api:
+	rm -f src/APIs/shared_lib/*.so src/APIs/*.o
+
 # Clean up
 clean:
-	rm -f out.txt a.out NULL *.o src/APIs/shared_lib/libmylib.so
+	@rm -f out.txt a.out NULL *.o *.so 
+	@rm -rf objectfiles
+	@echo "Cleaning complete"
+	@echo "    This only cleans at a depth of 1, please see other clean methods if needed"
+
