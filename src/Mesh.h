@@ -32,12 +32,12 @@ void new_mesh(struct Mesh * mesh_ptr){
 }
 
 // import ops for enabled apis
-#include "NATURAL_ops.h"
+#include "ops/NATURAL_ops.h"
 #ifdef CUDA_enabled
-#include "CUDA_ops.h"
+#include "ops/CUDA_ops.h"
 #endif
 #ifdef MKL_enabled
-#include "MKL_ops.h"
+#include "ops/MKL_ops.h"
 #endif
 
 // config initializes a mesh object, and populates it with

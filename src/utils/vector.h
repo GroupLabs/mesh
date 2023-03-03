@@ -1,5 +1,18 @@
 #include <stdlib.h> // check size vs stddef.h
 
+
+
+
+// THIS FILE IS NOT USED. ONLY FOR REFERENCE.
+
+
+
+
+
+
+
+
+
 typedef struct {
     int device_id; // auto-assigned device_id
     int thread_id; // thread_id on device if exists, else -1

@@ -5,8 +5,7 @@
 #ifndef CUDA_OPS_H
 #define CUDA_OPS_H
 
-#include "Device.h"
-#include "Mesh.h"
+#include "../Mesh.h"
 
 // Is this more performant than using find in makefile?
 // Should be as little config overhead as possible

@@ -2,8 +2,8 @@
 #ifndef NATURAL_OPS_H
 #define NATURAL_OPS_H
 
-#include "Mesh.h"
-#include "String_H.h"
+#include "../Mesh.h"
+#include "../utils/String_H.h"
 
 void natural_config(struct Mesh *mesh_ptr){
     // Set natural API

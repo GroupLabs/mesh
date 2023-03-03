@@ -1,16 +1,19 @@
-The following is a scenario for how Mesh will be used. The following is low-level psuedo code, but we can iteratively move up
-to something like Python down the road.
+The following psuedo code is meant to develop an intuition as to how Mesh will be used.
 
-a = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+    Given two arrays:
 
-b = [1, 2, 3, 4, 5, 6, 8, 9, 10]
+    a = [1, 2, 3, 4, 5, 6, 8, 9, 10]
 
-mesh = Mesh() // initiate Mesh context, automatically 
+    b = [1, 2, 3, 4, 5, 6, 8, 9, 10]
 
-print(mesh.devices()) // get available devices
+    We can implement operations like:
 
-product = mesh.multiply(a, b) // array multiplication
+    mesh = Mesh() // initiate Mesh context, automatically 
 
-tensor = mesh.multiply(product, product) // matrix multiplication
+    print(mesh.devices()) // get available devices
 
-sum = mesh.add(tensor, tensor) // tensor addition
+    product = mesh.multiply(a, b) // array multiplication
+
+    tensor = mesh.multiply(product, product) // matrix multiplication
+
+    sum = mesh.add(tensor, tensor) // tensor addition

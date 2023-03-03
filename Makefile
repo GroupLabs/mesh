@@ -67,10 +67,13 @@ check_host:
     # Not sure what's producing this NULL file
 
 # Build and run test
-test: test.c
-	$(CC) $(CCFLAGS) test.c 
+test: src/test.c
+	$(CC) $(CCFLAGS) src/test.c 
 	./a.out > out.txt
 	cat out.txt
+
+api:
+	cc -fPIC -shared -o Mesh.so src/Mesh.h
 
 # Clean up
 clean:

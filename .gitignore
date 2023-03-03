@@ -1,9 +1,13 @@
+# Removing executables
 autodiff/target/
+Mesh.so
 
-noel/*
+# Removing byproducts
+out.txt
+NULL
+a.out
 
-test/out.txt
-test/NULL
-test/a.out
-
+# Removing environment files
 .vscode/
+noel/*
+*venv/
