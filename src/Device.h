@@ -6,13 +6,14 @@
 
 #include <stdlib.h>
 
-#define API_ID_LEN 7
+#define API_ID_LEN 6
+#define TYPE_ID_LEN 5
 
 // single generic device 
 typedef struct {
     char api_id[API_ID_LEN]; // API ID [CUDA, MKL, etc.]
 
-    char type[8]; // Specifies the type of device [CPU, GPU, etc.]
+    char type[TYPE_ID_LEN]; // Specifies the type of device [CPU, GPU, etc.]
     int rank; // rank of device
 
     int device_id; // auto-assigned device_id

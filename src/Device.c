@@ -67,10 +67,6 @@ void free_devicelist(DeviceList *v) { // free device list
     }
 }
 
-
-// multithreaded scheduler to assign tasks to different devices
-// Accepts: pointer to a DeviceList struct
-// Returns: success flag; 0 on success, not 0 on error
 void devicelist_scheduler()
 {
     

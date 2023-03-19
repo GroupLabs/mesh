@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "Mesh.h"
+#include "../Mesh.h"
 
 // Only exists to debug vals
 int main(){

@@ -6,16 +6,19 @@
 
 // import ops for enabled apis
 #include "ops/NATURAL_ops.h"
+#ifdef ACCELERATE_enabled
+#include "ops/ACCELERATE_ops.h"
+#endif
 #ifdef CUDA_enabled
 #include "ops/CUDA_ops.h"
 #endif
 #ifdef MKL_enabled
 #include "ops/MKL_ops.h"
 #endif
+#ifdef NEON_enabled // https://gist.github.com/csarron/3191b401ec545f78022881f1805cae9a
+#include "ops/NEON_ops.h"
+#endif
 
-// initalizes new Mesh object
-// Accepts: void
-// Returns: pointer to a Mesh struct
 Mesh* new_mesh(){
     Mesh *mesh_ptr = (Mesh*)malloc(sizeof(Mesh));
 
@@ -28,14 +31,29 @@ Mesh* new_mesh(){
     return mesh_ptr;
 }
 
-// config initializes a mesh object, and populates it with
-// information about known devices and device apis
-// Accepts: pointer to a Mesh struct
-// Returns: void; pointer is now pointing to configured Mesh object
 void config(Mesh* mesh_ptr){
+
+    #if UNKNOWN_PROC
 
     // get naturally available devices
     natural_config(mesh_ptr);
+
+    #endif
+    
+
+    // configure known accelerate devices
+    #if ACCELERATE_enabled
+
+    int ACCELERATE_config_success = ACCELERATE_config(mesh_ptr);
+
+    if(ACCELERATE_config_success == 0){ // ACCELERATE successfully configured
+        // 
+    }
+    else{ // ACCELERATE failed to configure
+        // remove anything related to ACCELERATE from mesh instance (ideally Mesh perserveres)
+    }
+
+    #endif
 
     // configure known CUDA devices
     #if CUDA_enabled

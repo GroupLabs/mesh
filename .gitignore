@@ -7,6 +7,7 @@ autodiff/target/
 out.txt
 NULL
 a.out
+temp.out
 
 # Removing environment files
 .vscode/

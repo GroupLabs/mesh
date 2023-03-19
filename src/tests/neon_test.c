@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-
+#include <unistd.h>
 #include <sys/time.h>
 
 #include <arm_neon.h>
@@ -181,6 +181,10 @@ int main(int argc, const char ** argv) {
     float * src1 = (float *)malloc(sizeof(float)*M);
     float * dst  = (float *)malloc(sizeof(float)*N);
 
+    // printf("Sleeping");
+    // sleep(10);
+    // printf("the beast has been awakened !!");
+
     //float * src0 = (float *)(aligned_alloc(64, sizeof(float)*N*M));
     //float * src1 = (float *)(aligned_alloc(64, sizeof(float)*M));
     //float * dst  = (float *)(aligned_alloc(64, sizeof(float)*N));
@@ -231,17 +235,17 @@ int main(int argc, const char ** argv) {
     double iM = 1.0/M;
     double sum = 0.0f;
     for (int i = 0; i < nIter; i++) {
-        if (method == 0) {
-            mul_mat_vec_f32_0(src0, src1, dst, N, M);
-        }
+        // if (method == 0) {
+        //     mul_mat_vec_f32_0(src0, src1, dst, N, M); // Naive
+        // }
 
         if (method == 1) {
             mul_mat_vec_f16_0(src0_fp16, src1_fp16, dst, N, M);
         }
 
-        if (method == 2) {
-            mul_mat_vec_f16_1(src0_fp16, src1_fp16, dst, N, M);
-        }
+        // if (method == 2) {
+        //     mul_mat_vec_f16_1(src0_fp16, src1_fp16, dst, N, M);
+        // }
     }
 
     for (int i = 0; i < N; i++) {
