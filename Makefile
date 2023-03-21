@@ -69,6 +69,14 @@ endif
 
 # LDFLAGS += -framework Accelerate
 
+
+
+## Needs to support network devices too
+
+
+
+
+
 # Get OS, and CPU architecture of host
 check_host:
 	@echo "OS: $(OS_DET)"
