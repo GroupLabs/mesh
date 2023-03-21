@@ -64,6 +64,7 @@ Hardware library support for (in order):
 
 Features:
 - XLA-type op fusion engine
+- Mesh node to act as a worker on non-host devices
 
 ```mermaid
 

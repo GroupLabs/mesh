@@ -1,0 +1,6 @@
+CTypes doesn't support pointers to typdefed objects like Mesh or DeviceList
+CFFI doesn't support directives
+
+Will try these next:
+PyBind
+Cython
