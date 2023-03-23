@@ -1,6 +1,6 @@
 // CUDA_ops.h
 
-#if CUDA_enabled
+#ifdef CUDA_enabled
 
 #ifndef CUDA_OPS_H
 #define CUDA_OPS_H

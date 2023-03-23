@@ -3,7 +3,7 @@
 # Set compiler, and base flags
 CC := gcc
 CCFLAGS := -ldl -O2
-build_files := src/Mesh.c src/Device.c src/utils/String_H.c src/ops/NATURAL_ops.c
+build_files := src/Mesh.c src/Device.c src/utils/string_H.c src/ops/NATURAL_ops.c
 
 # Error handling
 ERRORS := NONE
@@ -11,82 +11,117 @@ WARNS := NONE
 
 # Determine OS and architecture
 OS_DET=UNKNOWN_OS
-CPU_DET=UNKNOWN_CPU
+PROC_DET=UNKNOWN_PROC
 
 ifeq ($(OS),Windows_NT)
-	  OS_DET=WIN
+	  OS_DET=Windows
     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
-        CPU_DET=AMD64
+        PROC_DET=AMD64
     else
         ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
-            CPU_DET=AMD64
+            PROC_DET=AMD64
         endif
         ifeq ($(PROCESSOR_ARCHITECTURE),x86)
-            CPU_DET=86
+            PROC_DET=86
         endif
     endif
 else
     # OS implementation
     OS_DET := $(shell uname -s)
 
-    # CPU architecture
-    CPU_DET := $(shell uname -m)
+    # PROC architecture
+    PROC_DET := $(shell uname -m)
 endif
 
-# Check if Accelerate is enabled
-ifndef ACCELERATE
-    ACCELERATE_enabled=0
-	ifeq ($(OS_DET),Darwin)
-        ifeq ($(CPU_DET),arm64)
-            ACCELERATE_enabled=1
-        else
-            ifeq ($(shell sysctl -n machdep.cpu.brand_string | grep -i "apple" | wc -l), 1)
-                WARNS += ROSETTA_MODE_WARN # Rosetta mode is enabled for terminal
-            endif
+# Check for network devices
+# TODO: Add support for network devices
+# OS_DET += ...
+# PROC_DET += ...
+
+ifeq ($(OS_DET),Darwin)
+
+    build_files += src/utils/darwin.c
+
+    ### FRAMEWORKS
+
+    # Check if Accelerate is enabled
+    ifeq ($(PROC_DET),arm64)
+        CCFLAGS += -D ACCELERATE_enabled=1
+        # LDFLAGS += -framework Accelerate
+        build_files += src/ops/ACCELERATE_ops.c
+    else
+        ifeq ($(shell sysctl -n machdep.cpu.brand_string | grep -i "apple" | wc -l), 1)
+            WARNS += ROSETTA_MODE_WARN # Rosetta mode is enabled for terminal
         endif
-	endif
+    endif
+
+    ### INTRINSICS
+
+    # Check if NEON is enabled
+    # sysctl -a | grep neon 
+    # -mfpu=neon is not supported by clang (only gcc, armclang)
+
 endif
 
-# Check for CUDA, and set CUDA_enabled flag
-# This does not support, but can be extended to support CUDA runtime (cudart)
-NVCC_RESULT := $(shell which nvcc 2> NULL)
-NVCC_TEST := $(notdir $(NVCC_RESULT))
-ifeq ($(NVCC_TEST),nvcc)
-    CUDA_enabled := 1
-else
-    CUDA_enabled := 0
+ifeq ($(OS_DET),Linux)
+
+    build_files += src/utils/linux.c # Specific files for each distro?
+
+    ### FRAMEWORKS
+
+    # Check for CUDA, and set CUDA_enabled flag
+    # This does not support, but can be extended to support CUDA runtime (cudart)
+    # NVCC_RESULT := $(shell which nvcc 2> NULL)
+    # NVCC_TEST := $(notdir $(NVCC_RESULT))
+    # ifeq ($(NVCC_TEST),nvcc)
+    #     CUDA_enabled := 1    
+    # endif
+    ifeq ($(shell which nvcc | grep -c nvcc),1)
+        CCFLAGS += -D CUDA_enabled=1
+        build_files += src/ops/CUDA_ops.c
+    endif
+
+    ### INTRINSICS
+
+    # Check if NEON is enabled
+    ifeq ($(shell grep -c neon /proc/cpuinfo), 1)
+        CCFLAGS += -D NEON_enabled=1
+        build_files += src/ops/NEON_ops.c
+    endif
 endif
 
-# Set enabled libraries
-ifeq ($(ACCELERATE_enabled),1)
-    CCFLAGS += -D ACCELERATE_enabled=1
-    build_files += src/ops/ACCELERATE_ops.c src/utils/darwin.c
+ifeq ($(OS_DET),Windows)
+
+    build_files += src/utils/Windows.c # ?
+
+    ### FRAMEWORKS
+
+    # CUDA
+    # OneAPI
+
+    ### INTRINSICS
+
 endif
-ifeq ($(CUDA_enabled),1)
-    CCFLAGS += -D CUDA_enabled=1
-    build_files += src/ops/CUDA_ops.c
+
+# Handle unknown OS, and architecture
+ifeq ($(OS_DET),UNKNOWN_OS)
+    $(CCFLAGS) += -D UNKNOWN_OS=1
+    WARNS += UNKNOWN_OS_WARN
 endif
 
-# LDFLAGS += -framework Accelerate
-
-
-
-## Needs to support network devices too
-
-
-
-
+ifeq ($(PROC_DET),UNKNOWN_PROC)
+    $(CCFLAGS) += -D UNKNOWN_PROC=1
+    WARNS += UNKNOWN_PROC_WARN
+endif
 
 # Get OS, and CPU architecture of host
 check_host:
 	@echo "OS: $(OS_DET)"
-	@echo "ARCH: $(CPU_DET)"
+	@echo "ARCH: $(PROC_DET)"
 	@echo "ERRORS: $(ERRORS)"
 	@echo "WARNS: $(WARNS)"
 	@echo "CCFLAGS: $(CCFLAGS)"
 	@echo "BUILD_FILES: $(build_files)"
-	@rm NULL 
-    # Not sure what's producing this NULL file
 
 # Build and run test
 test:
