@@ -5,7 +5,6 @@ CC := gcc
 CCFLAGS := -ldl -O2
 build_files := src/Mesh.c src/Device.c src/utils/string_H.c src/ops/NATURAL_ops.c
 
-# Error handling
 ERRORS := NONE
 WARNS := NONE
 
