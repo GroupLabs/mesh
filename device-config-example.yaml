@@ -8,5 +8,7 @@ SYSTEM 1
   ERRORS: None
   - DEVICE 1
     ARCH-GENERIC: arm64
-    FRAMEWORKS: Accelerate
-    INTRINSICS: NEON
+    FRAMEWORKS:
+      - Accelerate
+    INTRINSICS:
+      - NEON
