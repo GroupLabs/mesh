@@ -1,7 +1,7 @@
 #include "../Mesh.h"
 #include "ACCELERATE_ops.h"
 
-#include "../utils/darwin.h"
+#include "../os/darwin.h"
 
 int ACCELERATE_config(Mesh *mesh_ptr){
 

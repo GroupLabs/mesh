@@ -128,16 +128,16 @@ test:
 	@./temp.out > out.txt
 	@cat out.txt
 
-apitest:
+bindingtest:
 	gcc -c -fPIC src/bindings/ctest.c -o src/bindings/testfile1.o
 	gcc -c -fPIC src/bindings/ctesthello.c -o src/bindings/testfile2.o
 
 	gcc -shared src/bindings/testfile1.o src/bindings/testfile2.o -o src/bindings/libmylib.so
 
-api:
+binding:
 	$(CC) -shared $(build_files) -o src/bindings/meshlib.so
 
-clean_api:
+clean_binding:
 	rm -f src/bindings/*.so src/bindings/*.o
 
 # Clean up
