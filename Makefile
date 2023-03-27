@@ -66,6 +66,8 @@ ifeq ($(OS_DET),Linux)
 
     build_files += src/utils/linux.c # Specific files for each distro?
 
+    #$(info "Being built")
+
     ### FRAMEWORKS
 
     # Check for CUDA, and set CUDA_enabled flag
@@ -78,6 +80,13 @@ ifeq ($(OS_DET),Linux)
     ifeq ($(shell which nvcc | grep -c nvcc),1)
         CCFLAGS += -D CUDA_enabled=1
         build_files += src/ops/CUDA_ops.c
+    endif
+
+    # Check for CUDA, and set CUDA_enabled flag
+    ifeq ($(shell which dpcpp | grep -c dpcpp),1)
+	CCFLAGS += -D ONEAPI_enabled=1
+	build_files += src/ops/ONEAPI_ops.c
+	#$(info "Confirmed oneapi Exists")
     endif
 
     ### INTRINSICS
