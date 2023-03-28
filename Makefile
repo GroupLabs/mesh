@@ -64,7 +64,7 @@ endif
 
 ifeq ($(OS_DET),Linux)
 
-    build_files += src/utils/linux.c # Specific files for each distro?
+    build_files += src/utils/linux.c # Specific files for each distro? (Is there a need for this?)
 
     #$(info "Being built")
 
