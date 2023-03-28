@@ -1,0 +1,12 @@
+tinygrad
+
+1. Define appropriate operations with NEON/Accelerate
+2. Python bindings
+3. Apply bindings to tinygrad
+4. profile
+
+https://github.com/geohot/tinygrad/blob/master/tinygrad/runtime/ops_torch.py
+
+
+
+reimplement micrograd in Rust
