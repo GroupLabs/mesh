@@ -74,7 +74,7 @@ int main() {
         //void* lib = loadLibrary();
         if (lib != NULL) {
             // use the library here
-            freeLibrary(lib);
+            //freeLibrary(lib);
         } else {
             return -1;
         }

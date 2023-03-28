@@ -82,7 +82,7 @@ ifeq ($(OS_DET),Linux)
         build_files += src/ops/CUDA_ops.c
     endif
 
-    # Check for CUDA, and set CUDA_enabled flag
+    # Check for ONEAPI, and set ONEAPI_enabled flag
     ifeq ($(shell which dpcpp | grep -c dpcpp),1)
 	CCFLAGS += -D ONEAPI_enabled=1
 	build_files += src/ops/ONEAPI_ops.c
