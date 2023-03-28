@@ -3,7 +3,7 @@
 # Set compiler, and base flags
 CC := gcc
 CCFLAGS := -ldl -O2
-build_files := src/Mesh.c src/Device.c src/utils/string_H.c src/ops/NATURAL_ops.c
+build_files := src/Mesh.c src/Device.c src/utils/String_H.c src/ops/NATURAL_ops.c
 
 ERRORS := NONE
 WARNS := NONE
@@ -64,7 +64,7 @@ endif
 
 ifeq ($(OS_DET),Linux)
 
-    build_files += src/utils/linux.c # Specific files for each distro? (Is there a need for this?)
+    build_files += src/os/linux.c # Specific files for each distro? (Is there a need for this?)
 
     #$(info "Being built")
 

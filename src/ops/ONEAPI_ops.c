@@ -72,6 +72,7 @@ int main() {
     int exists = oneAPIExists();
     if(exists == 1) {
         //void* lib = loadLibrary();
+	void* lib = NULL;
         if (lib != NULL) {
             // use the library here
             //freeLibrary(lib);

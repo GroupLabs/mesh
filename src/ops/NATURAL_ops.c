@@ -1,5 +1,5 @@
 #include "../Mesh.h"
-#include "../utils/string_H.h"
+#include "../utils/String_H.h"
 
 void natural_config(Mesh *mesh_ptr){
     // Set natural API
