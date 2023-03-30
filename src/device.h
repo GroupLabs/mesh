@@ -9,15 +9,19 @@
 #define API_ID_LEN 6
 #define TYPE_ID_LEN 5
 
-// single generic device 
+// single generic device - this is a fuzzy concept; devices are engaged implicitly
+// by the scheduler, to not override other mechanisms
+
 typedef struct {
-    char api_id[API_ID_LEN]; // API ID [CUDA, MKL, etc.]
-
-    char type[TYPE_ID_LEN]; // Specifies the type of device [CPU, GPU, etc.]
-    int rank; // rank of device
-
     int device_id; // auto-assigned device_id
-    int thread_id; // thread_id on device if exists, else -1
+    int thread_id; // thread_id on device if exists, else -1 (handled by scheduler)
+
+    // operations
+
+    tensor (*add)(tensor, tensor); // foo = &my_int_func;
+    tensor (*sub)(tensor, tensor);
+    tensor (*mul)(tensor, tensor);
+    tensor (*div)(tensor, tensor);
 } Device;
 
 // collection of devices

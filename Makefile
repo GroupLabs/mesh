@@ -3,7 +3,7 @@
 # Set compiler, and base flags
 CC := gcc
 CCFLAGS := -ldl -O2
-build_files := src/Mesh.c src/Device.c src/utils/string_H.c src/ops/NATURAL_ops.c
+build_files := src/mesh.c src/device.c src/utils/string_H.c src/ops/NATURAL_ops.c
 
 ERRORS := NONE
 WARNS := NONE
@@ -39,7 +39,7 @@ endif
 
 ifeq ($(OS_DET),Darwin)
 
-    build_files += src/utils/darwin.c
+    build_files += src/os/darwin.c
 
     ### FRAMEWORKS
 
@@ -64,7 +64,7 @@ endif
 
 ifeq ($(OS_DET),Linux)
 
-    build_files += src/utils/linux.c # Specific files for each distro?
+    build_files += src/os/linux.c # Specific files for each distro?
 
     ### FRAMEWORKS
 
@@ -87,6 +87,20 @@ ifeq ($(OS_DET),Linux)
         CCFLAGS += -D NEON_enabled=1
         build_files += src/ops/NEON_ops.c
     endif
+
+    # Creating device config file
+    $(shell touch device-config.yaml)
+
+    $(shell echo "SYSTEM 1" > device-config.yaml)
+    $(shell echo "  OS-GENERIC: $(OS_DET)" >> device-config.yaml)
+    $(shell echo "  WARNS: $(WARNS)" >> device-config.yaml)
+    $(shell echo "  ERRORS: $(ERRORS)" >> device-config.yaml)
+    
+    $(shell echo "  - DEVICE 1" >> device-config.yaml)
+    $(shell echo "      ARCH-GENERIC: $(PROC_DET)" >> device-config.yaml)
+    $(shell echo "      FRAMEWORKS:" >> device-config.yaml)
+    $(shell echo "      INTRINSICS:" >> device-config.yaml)
+
 endif
 
 ifeq ($(OS_DET),Windows)
@@ -142,7 +156,7 @@ clean_binding:
 
 # Clean up
 clean:
-	@rm -f out.txt temp.out NULL *.o *.so 
+	@rm -f out.txt temp.out NULL *.o *.so *.yaml
 	@rm -rf objectfiles
 	@echo "Cleaning complete"
 	@echo "    This only cleans at a depth of 1, please see other clean methods if needed"

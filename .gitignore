@@ -8,6 +8,7 @@ out.txt
 NULL
 a.out
 temp.out
+device-config.yaml
 
 # Removing environment files
 .vscode/

@@ -1,4 +1,4 @@
-#include "../Mesh.h"
+#include "../mesh.h"
 #include "ACCELERATE_ops.h"
 
 #include "../os/darwin.h"

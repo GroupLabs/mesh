@@ -1,4 +1,4 @@
-#include "../Mesh.h"
+#include "../mesh.h"
 #include "../utils/string_H.h"
 
 void natural_config(Mesh *mesh_ptr){

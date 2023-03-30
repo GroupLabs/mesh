@@ -1,8 +1,8 @@
 // Mesh.h
 
 // Mesh provides an easy-to-use api that automatically selects a device to run on.
-#include "Mesh.h"
-#include "Device.h"
+#include "mesh.h"
+#include "device.h"
 
 #ifdef UNKNOWN_PROC
 #include "ops/NATURAL_ops.h"
