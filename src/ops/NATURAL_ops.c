@@ -6,7 +6,7 @@ void natural_config(Mesh *mesh_ptr){
     // mesh_ptr->available_apis[0] = -1; // Should find available slot, then assign
 
     // Add device to device_list
-    Device natural_device = {"NONE", "NONE", 0}; // Literally just guessing it's CPU
+    Device natural_device = {}; // Literally just guessing it's CPU
 
     #ifdef AMD64
         copy_str(natural_device.api_id, "AMD64", API_ID_LEN);
