@@ -1,10 +1,26 @@
-
-
 tinygrad
 
 1. Define appropriate operations with NEON/Accelerate 
 
     Need to implement the following operations:
+
+    
+    
+    ***** Build PyTorch from source
+    1. Build from source
+        a. python3 setup.py develop
+        
+        There's an error on MacOS that involves not having Python dev libs not being
+        installed, simply run `brew install python3`
+
+    2. Create build file for chosen build system. PyTorch reccomends cmake.
+    3. Run
+
+    Example code:
+    https://github.com/pytorch/examples/tree/main/cpp
+
+
+
 
     A. Buffer                                                       # class of memory on this device
 
@@ -14,6 +30,10 @@ tinygrad
         https://github.com/pytorch/pytorch/tree/master/aten/src/ATen/core
         https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/core/Tensor.cpp
         https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/core/Tensor.h
+
+        Registering Mesh operations on ATen (maybe we can one shot the whole process):
+        https://github.com/pytorch/pytorch/tree/master/aten/src/ATen/core/op_registration
+        https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/README.md
 
         References:
         https://github.com/ggerganov/ggml/blob/master/include/ggml/ggml.h
