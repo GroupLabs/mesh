@@ -4,7 +4,7 @@ tinygrad
 
     Need to implement the following operations:
 
-    
+    Use conda env to force python 3.8
     
     ***** Build PyTorch from source
     1. Build from source
