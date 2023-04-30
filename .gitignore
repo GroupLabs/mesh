@@ -9,6 +9,7 @@ NULL
 a.out
 temp.out
 device-config.yaml
+.DS_Store
 
 # Removing environment files
 .vscode/
