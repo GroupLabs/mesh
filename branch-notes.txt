@@ -20,6 +20,10 @@ tinygrad
     https://github.com/pytorch/examples/tree/main/cpp
 
 
+    Writing op extensions for PyTorch:
+    https://pytorch.org/tutorials/advanced/cpp_extension.html
+
+
 
 
     A. Buffer                                                       # class of memory on this device

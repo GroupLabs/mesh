@@ -10,8 +10,12 @@ a.out
 temp.out
 device-config.yaml
 .DS_Store
+*.bin
 
 # Removing environment files
 .vscode/
 noel/*
 *venv/
+
+# Removing build files for other products
+torch_build_tests/
