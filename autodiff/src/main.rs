@@ -19,6 +19,7 @@ struct Node<T, U> {
     op: Op,
     backward: String,
     prev: HashMap<usize, Rc<Node<T, U>>>,
+    label: String,
 }
 
 fn generate_id() -> usize {
@@ -47,18 +48,6 @@ where
     }
 }
 
-fn merge_prev<T, U>(lhs: &Node<T, U>, rhs: &Node<T, U>) -> HashMap<usize, Rc<Node<T, U>>>
-where
-    T: Clone,
-    U: Clone,
-{
-    let mut map = lhs.prev.clone();
-    for (k, v) in rhs.prev.iter() {
-        map.entry(*k).or_insert(v.clone());
-    }
-    map
-}
-
 // Add
 impl<T, U> Add for Node<T, U>
 where
@@ -68,17 +57,18 @@ where
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
-        let prev = merge_prev(&self, &other);
-        prev.insert(self.id, Rc::new(self.clone()));
+        let mut prev = HashMap::new();  // Start with an empty HashMap
+        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
         prev.insert(other.id, Rc::new(other.clone()));
 
         Self {
-            id: Self::generate_id(),
+            id: generate_id(),
             data: self.data + other.data,
-            grad: self.grad,
+            grad: self.grad,  // You might want to consider how to handle grad for the new node
             op: Op::Add,
             backward: String::from(""),
-            prev,
+            prev,  // Using the populated `prev` HashMap
+            label: String::from(""),
         }
     }
 }
@@ -92,17 +82,18 @@ where
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
-        let prev = merge_prev(&self, &other);
-        prev.insert(self.id, Rc::new(self.clone()));
+        let mut prev = HashMap::new();  // Start with an empty HashMap
+        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
         prev.insert(other.id, Rc::new(other.clone()));
 
         Self {
-            id: Self::generate_id(),
+            id: generate_id(),
             data: self.data - other.data,
             grad: self.grad,
             op: Op::Sub,
             backward: String::from(""),
             prev,
+            label: String::from("")
         }
     }
 }
@@ -116,17 +107,18 @@ where
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
-        let prev = merge_prev(&self, &other);
-        prev.insert(self.id, Rc::new(self.clone()));
+        let mut prev = HashMap::new();  // Start with an empty HashMap
+        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
         prev.insert(other.id, Rc::new(other.clone()));
 
         Self {
-            id: Self::generate_id(),
+            id: generate_id(),
             data: self.data * other.data,
             grad: self.grad,
             op: Op::Mul,
             backward: String::from(""),
             prev,
+            label: String::from("")
         }
     }
 }
@@ -140,19 +132,19 @@ where
     type Output = Self;
 
     fn div(self, other: Self) -> Self::Output {
+        let mut prev = HashMap::new();  // Start with an empty HashMap
+        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
+        prev.insert(other.id, Rc::new(other.clone()));
+
         Self {
-            id: Self::generate_id(),
+            id: generate_id(),
             data: self.data /
             other.data,
             grad: self.grad,
             op: Op::Div,
             backward: String::from(""),
-            prev: {
-                let mut map = HashMap::new();
-                map.insert(0, Rc::new(self));
-                map.insert(1, Rc::new(other));
-                map
-            },
+            prev,
+            label: String::from("")
         }
     }
 }
@@ -173,60 +165,62 @@ impl fmt::Display for Op {
 
 impl<T, U> fmt::Display for Node<T, U>
 where
-T: fmt::Display + Clone,
-U: fmt::Display + Clone,
+    T: fmt::Display + Clone,
+    U: fmt::Display + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
-        f,
-        "Node {{ data: {}, grad: {}, op: {}, backward: {}, prev: {} }}",
-        self.data,
-        self.grad,
-        self.op,
-        self.backward,
-        format_prev(&self.prev)
+            f,
+            "id: {}, label: {}, data: {}, grad: {}, backward: {}, op: {}, prev: {}",
+            self.id,
+            self.label,
+            self.data,
+            self.grad,
+            self.backward,
+            self.op,
+            format_prev(&self.prev)  // Use format_prev to get the string representation of prev
         )
     }
 }
 
+
 fn format_prev<T, U>(prev: &HashMap<usize, Rc<Node<T, U>>>) -> String
 where
-T: fmt::Display + Clone,
-U: fmt::Display + Clone,
+    T: fmt::Display + Clone,
+    U: fmt::Display + Clone,
 {
     let entries: Vec<String> = prev
-    .iter()
-    .map(|(k, v)| format!("{}: Node {{ data: {}, grad: {}, op: {} }}", k, v.data, v.grad, v.op))
-    .collect();
+        .iter()
+        .map(|(k, v)| format!("{}: {}", k, v.as_ref()))  // Remove the label to see the full graph
+        .collect();
     format!("{{ {} }}", entries.join(", "))
 }
 
 fn main() {
+    
+    let _none_example = Node::new(23.0, 1.0, None); // Unlabelled nodes are allowed
+    
+    let v = Node::new(23.0, 1.0, Some(String::from("V"))); // Unlabelled nodes are allowed
 
     // Create nodes (data)
-    let w = Node::new(21241242.0, 0.0, Some(String::from("first node")));
-    let x = Node::new(32414214.0, 0.0, Some(String::from("second node")));
-    let y = Node::new(42412412.0, 1.0, None);
-    let z = Node::new(52141241.0, 1.0, None);
-
-    let mut a = x * y;
-
-    a.label = String::from("LABEL A");
+    let w = Node::new(3.0, 0.0, Some(String::from("W")));
+    let x = Node::new(4.0, 0.0, Some(String::from("X")));
+    let y = Node::new(5.0, 1.0, Some(String::from("Y")));
+    let z = Node::new(6.0, 1.0, Some(String::from("Z")));
     
-    let mut b = w + z;
-
-    b.label = String::from("LABEL B");
+    
+    let mut a = v * w;
+    a.label = String::from("A");
+    
+    let mut b = y + z;
+    
+    b.label = String::from("B");
+    
+    let mut c = a + b + x;
+    
+    c.label = String::from("C");
     
     println!("\n");
-
-    println!("label: {}, data: {}, grad: {}, backward: {}, prev_0: {},  prev_1: {}, op: {}\n", a.label, a.data, a.grad, a.backward, a.prev[&0].data, a.prev[&1].data, a.op);
-    println!("label: {}, data: {}, grad: {}, backward: {}, prev_0: {},  prev_1: {}, op: {}\n", b.label, b.data, b.grad, b.backward, b.prev[&0].data, b.prev[&1].data, b.op);
-    // let x = Node::new(3.0, 0.0);
-    // let y = Node::new(4.0, 1.0);
-    // let a = Node::new(4.0, 1.0);
-
-    // let b = a + x;
-    // let c = b + y;
-
-    println!("c: {}", c);
+    
+    println!("{}\n", c);
 }

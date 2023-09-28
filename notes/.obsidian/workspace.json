@@ -155,11 +155,12 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "6b99a9e3227c4697",
+  "active": "b254c0052f5bac5a",
   "lastOpenFiles": [
-    "recommended reading.md",
     "running autodiff.md",
+    "recommended reading.md",
     "intuition.md",
+    "testing graph gen.md",
     "branch notes.md",
     "recommended_reading.txt",
     "out.txt",
