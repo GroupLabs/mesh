@@ -25,14 +25,14 @@ where
     T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Clone,
     U: Clone,
 {
-    fn new(data: T, grad: U) -> Self {
+    fn new(data: T, grad: U, label: Option<String>) -> Self {
         Self {
             data,
             grad,
             op: Op::New,
             backward: String::from(""),
             prev: HashMap::new(),
-            label: String::from(""),
+            label: label.unwrap_or(String::from("")),
         }
     }
 }
@@ -155,21 +155,22 @@ impl fmt::Display for Op {
 
 fn main() {
 
-    let x = Node::new(3.0, 0.0, label="x");
-    let y = Node::new(4.0, 1.0);
-    let z = Node::new(5.0, 1.0);
+    // Create nodes (data)
+    let w = Node::new(21241242.0, 0.0, Some(String::from("first node")));
+    let x = Node::new(32414214.0, 0.0, Some(String::from("second node")));
+    let y = Node::new(42412412.0, 1.0, None);
+    let z = Node::new(52141241.0, 1.0, None);
 
-    let a = x * y;
+    let mut a = x * y;
 
-    let b = a + z;
-
-
-
-    // let b = a + z;
-
-    // let b = a + x;
-
+    a.label = String::from("LABEL A");
     
-    // println!("data: {}, grad: {}, backward: {}, prev_0: {},  prev_1: {}, op: {}", a.data, a.grad, a.backward, a.prev[&0].data, a.prev[&1].data, a.op);
-    println!("label: {}, data: {},", b.label, b.data);
+    let mut b = w + z;
+
+    b.label = String::from("LABEL B");
+    
+    println!("\n");
+
+    println!("label: {}, data: {}, grad: {}, backward: {}, prev_0: {},  prev_1: {}, op: {}\n", a.label, a.data, a.grad, a.backward, a.prev[&0].data, a.prev[&1].data, a.op);
+    println!("label: {}, data: {}, grad: {}, backward: {}, prev_0: {},  prev_1: {}, op: {}\n", b.label, b.data, b.grad, b.backward, b.prev[&0].data, b.prev[&1].data, b.op);
 }
