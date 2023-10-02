@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Sub, Mul, Div, AddAssign};
 use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug, Clone, Copy)]
 enum Op {
@@ -18,7 +19,7 @@ struct Node<T, U> {
     grad: U,
     op: Op,
     backward: String,
-    prev: HashMap<usize, Rc<Node<T, U>>>,
+    prev: HashMap<usize, Rc<RefCell<Node<T, U>>>>,
     label: String,
 }
 
@@ -27,7 +28,6 @@ fn generate_id() -> usize {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
     COUNTER.fetch_add(1, Ordering::SeqCst)
 }
-
 
 impl<T, U> Node<T, U>
 where
@@ -54,20 +54,20 @@ where
     T: Add<Output = T> + Copy,
     U: Copy,
 {
-    type Output = Self;
+    type Output = Node<T, U>;
 
     fn add(self, other: Self) -> Self::Output {
-        let mut prev = HashMap::new();  // Start with an empty HashMap
-        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
-        prev.insert(other.id, Rc::new(other.clone()));
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-        Self {
+        Node {
             id: generate_id(),
             data: self.data + other.data,
-            grad: self.grad,  // You might want to consider how to handle grad for the new node
+            grad: self.grad,
             op: Op::Add,
             backward: String::from(""),
-            prev,  // Using the populated `prev` HashMap
+            prev,
             label: String::from(""),
         }
     }
@@ -79,21 +79,21 @@ where
     T: Sub<Output = T> + Copy,
     U: Copy,
 {
-    type Output = Self;
+    type Output = Node<T, U>;
 
     fn sub(self, other: Self) -> Self::Output {
-        let mut prev = HashMap::new();  // Start with an empty HashMap
-        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
-        prev.insert(other.id, Rc::new(other.clone()));
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-        Self {
+        Node {
             id: generate_id(),
             data: self.data - other.data,
             grad: self.grad,
             op: Op::Sub,
             backward: String::from(""),
             prev,
-            label: String::from("")
+            label: String::from(""),
         }
     }
 }
@@ -104,21 +104,21 @@ where
     T: Mul<Output = T> + Copy,
     U: Copy,
 {
-    type Output = Self;
+    type Output = Node<T, U>;
 
     fn mul(self, other: Self) -> Self::Output {
-        let mut prev = HashMap::new();  // Start with an empty HashMap
-        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
-        prev.insert(other.id, Rc::new(other.clone()));
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-        Self {
+        Node {
             id: generate_id(),
             data: self.data * other.data,
             grad: self.grad,
             op: Op::Mul,
             backward: String::from(""),
             prev,
-            label: String::from("")
+            label: String::from(""),
         }
     }
 }
@@ -129,22 +129,21 @@ where
     T: Div<Output = T> + Copy,
     U: Copy,
 {
-    type Output = Self;
+    type Output = Node<T, U>;
 
     fn div(self, other: Self) -> Self::Output {
-        let mut prev = HashMap::new();  // Start with an empty HashMap
-        prev.insert(self.id, Rc::new(self.clone()));  // Insert only the direct parent nodes
-        prev.insert(other.id, Rc::new(other.clone()));
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-        Self {
+        Node {
             id: generate_id(),
-            data: self.data /
-            other.data,
+            data: self.data / other.data,
             grad: self.grad,
             op: Op::Div,
             backward: String::from(""),
             prev,
-            label: String::from("")
+            label: String::from(""),
         }
     }
 }
@@ -178,49 +177,112 @@ where
             self.grad,
             self.backward,
             self.op,
-            format_prev(&self.prev)  // Use format_prev to get the string representation of prev
+            format_prev(&self.prev)
         )
     }
 }
 
+trait FromF64: Sized {
+    fn from_f64(n: f64) -> Self;
+}
 
-fn format_prev<T, U>(prev: &HashMap<usize, Rc<Node<T, U>>>) -> String
+impl FromF64 for f32 {
+    fn from_f64(n: f64) -> Self {
+        n as f32
+    }
+}
+
+impl FromF64 for f64 {
+    fn from_f64(n: f64) -> Self {
+        n
+    }
+}
+
+trait ToF64 {
+    fn to_f64(self) -> f64;
+}
+
+impl ToF64 for f32 {
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl ToF64 for f64 {
+    fn to_f64(self) -> f64 {
+        self
+    }
+}
+
+impl<T, U> Node<T, U>
+where
+    T: Copy + Clone + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + ToF64,
+    U: Copy + Clone + AddAssign + FromF64 + Mul<Output = U> + Add<Output = U>,
+{
+    fn derivative(&self, input: &Self) -> U {
+        match self.op {
+            Op::Add => U::from_f64(1.0),
+            Op::Sub => {
+                if self.id == input.id {
+                    U::from_f64(1.0)
+                } else {
+                    U::from_f64(-1.0)
+                }
+            }
+            Op::Mul => {
+                let other_id = self.prev.keys().find(|&&k| k != input.id).unwrap();
+                let other_value = self.prev.get(&other_id).unwrap().borrow().data.clone();
+                U::from_f64(other_value.to_f64())
+            }
+            Op::Div => {
+                if self.id == input.id {
+                    U::from_f64(1.0 / input.data.clone().to_f64())
+                } else {
+                    U::from_f64(-self.data.clone().to_f64() / (input.data.clone().to_f64() * input.data.clone().to_f64()))
+                }
+            }
+            _ => U::from_f64(0.0),
+        }
+    }    
+    
+    fn backward(self, grad_output: U) -> Node<T, U> {
+        let new_grad = self.grad + grad_output;
+        let new_prev = self.prev.iter()
+            .map(|(&k, v)| {
+                let input = v.borrow().clone();
+                let grad_input = self.derivative(&input) * grad_output;
+                (k, Rc::new(RefCell::new(input.backward(grad_input))))
+            })
+            .collect::<HashMap<_, _>>();
+
+        Node {
+            grad: new_grad,
+            prev: new_prev,
+            ..self
+        }
+    }
+}
+
+fn format_prev<T, U>(prev: &HashMap<usize, Rc<RefCell<Node<T, U>>>>) -> String
 where
     T: fmt::Display + Clone,
     U: fmt::Display + Clone,
 {
     let entries: Vec<String> = prev
         .iter()
-        .map(|(k, v)| format!("{}: {}", k, v.as_ref()))  // Remove the label to see the full graph
+        .map(|(k, v)| format!("{}: {}", k, v.borrow()))
         .collect();
     format!("{{ {} }}", entries.join(", "))
 }
 
 fn main() {
-    
-    let _none_example = Node::new(23.0, 1.0, None); // Unlabelled nodes are allowed
-    
-    let v = Node::new(23.0, 1.0, Some(String::from("V"))); // Unlabelled nodes are allowed
-
-    // Create nodes (data)
-    let w = Node::new(3.0, 0.0, Some(String::from("W")));
     let x = Node::new(4.0, 0.0, Some(String::from("X")));
-    let y = Node::new(5.0, 1.0, Some(String::from("Y")));
-    let z = Node::new(6.0, 1.0, Some(String::from("Z")));
+    let y = Node::new(5.0, 0.0, Some(String::from("Y")));
+
+    let c = x * y;
+    let new_c = c.backward(1.0);
+
+    println!("Gradient of C: {}", new_c.grad);
+    println!("Graph: {}", new_c);
     
-    
-    let mut a = v * w;
-    a.label = String::from("A");
-    
-    let mut b = y + z;
-    
-    b.label = String::from("B");
-    
-    let mut c = a + b + x;
-    
-    c.label = String::from("C");
-    
-    println!("\n");
-    
-    println!("{}\n", c);
 }

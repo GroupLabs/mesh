@@ -24,8 +24,6 @@ tinygrad
     https://pytorch.org/tutorials/advanced/cpp_extension.html
 
 
-
-
     A. Buffer                                                       # class of memory on this device
 
         The buffer is the tensor struct.
@@ -39,6 +37,12 @@ tinygrad
         https://github.com/pytorch/pytorch/tree/master/aten/src/ATen/core/op_registration
         https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/README.md
 
+        https://pytorch-dev-podcast.simplecast.com/episodes/torch-vs-aten-apis
+        https://pytorch.org/#community-module
+        https://openai.com/research/triton
+        https://dev-discuss.pytorch.org/t/tracing-with-primitives-update-0/577
+        https://medium.com/@MaziBoustani/pytorch-2-0-release-explained-b5f167b86819
+
         References:
         https://github.com/ggerganov/ggml/blob/master/include/ggml/ggml.h
 
@@ -46,8 +50,6 @@ tinygrad
     C. reduce_op (SUM, MAX)                                         # A -> B (smaller size, B has 1 in shape)
     D. binary_op (ADD, SUB, MUL, DIV, POW, CMPEQ, MAX)              # A + A -> A (all the same size)
     E. movement_op (EXPAND, RESHAPE, PERMUTE, PAD, SHRINK, STRIDE)  # A -> B (different size)
-
-
 
 2. Python bindings
 3. Apply bindings to tinygrad
