@@ -78,6 +78,9 @@ enum op {
 // single generic device - this is a fuzzy concept; devices are engaged implicitly
 // by the scheduler, to not override other mechanisms
 typedef struct {
+    char* api;
+    char* type;
+
     int device_id; // auto-assigned device_id
     int thread_id; // thread_id on device if exists, else -1 (handled by scheduler)
 

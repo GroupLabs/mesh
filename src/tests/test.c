@@ -15,7 +15,8 @@ int main(){
     int device_count = mesh->device_list->device_count;
 
     for(int i = 0; i < device_count; i++){
-
+        printf("API: %s\n", mesh->device_list->devices[i].api);
+        printf("Type: %s\n", mesh->device_list->devices[i].type);
         printf("Device ID: %d\n", mesh->device_list->devices[i].device_id);
         printf("Thread ID: %d\n", mesh->device_list->devices[i].thread_id);
     }

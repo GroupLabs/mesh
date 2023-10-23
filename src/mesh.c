@@ -8,6 +8,10 @@
 #include "ops/NATURAL_ops.h"
 #endif
 
+#ifdef ACCELERATE_enabled
+#include "ops/ACCELERATE_ops.h"
+#endif
+
 Mesh* new_mesh(){
     Mesh *mesh_ptr = (Mesh*)malloc(sizeof(Mesh));
 
@@ -25,6 +29,12 @@ void config(Mesh* mesh_ptr){
     #ifdef UNKNOWN_PROC
     // get naturally available devices
     natural_config(mesh_ptr);
+    #endif
+
+    #ifdef ACCELERATE_enabled
+
+    ACCELERATE_config(mesh_ptr);
+
     #endif
 
     // for each system, build a seperate thread, trigger appropriate os config 

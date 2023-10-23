@@ -10,13 +10,13 @@ int ACCELERATE_config(Mesh *mesh_ptr){
 
     free(device_type);
 
-    Device natural_device = {"ACCEL", "SoC", 0};
+    Device device = {"ACCEL", "SoC", 0};
 
     size_t a = 1024;
 
     show_cpu_info(device_type, a);
 
-    add_device(mesh_ptr->device_list, natural_device);
+    add_device(mesh_ptr->device_list, device);
 
     return 0;
 }
