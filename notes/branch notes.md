@@ -1,5 +1,20 @@
 tinygrad
 
+
+A tensor implementation is crucial for universal representation that can be shared between different architectures.
+
+This needs to also have autograd, and the operations defined (at least) in TinyGrad.
+
+
+
+
+
+
+
+
+
+
+
 1. Define appropriate operations with NEON/Accelerate 
 
     Need to implement the following operations:
