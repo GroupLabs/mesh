@@ -1,110 +1,286 @@
-use std::ops::{Add, Sub, Mul, Div};
+use std::collections::HashMap;
+use std::ops::{Add, Sub, Mul, Div, AddAssign};
+use std::rc::Rc;
+use std::cell::RefCell;
 
-struct Node<T, U> {
-    data: T,
-    grad: U, // Should this always be f64?
-    
-    // graph construction
-    _backward: String, // ??
-    _prev: u64,// hashmap? hashset? vector?
-    _op: String
+#[derive(Debug, Clone, Copy)]
+enum Op {
+    New,
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
-impl<T, U> Node<T, U>{
-    fn new(data: T, grad: U) -> Self {
+#[derive(Clone)]
+struct Node<T, U> {
+    id: usize,
+    data: T,
+    grad: U,
+    op: Op,
+    backward: String,
+    prev: HashMap<usize, Rc<RefCell<Node<T, U>>>>,
+    label: String,
+}
+
+fn generate_id() -> usize {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    COUNTER.fetch_add(1, Ordering::SeqCst)
+}
+
+impl<T, U> Node<T, U>
+where
+    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Clone,
+    U: Clone,
+{
+    fn new(data: T, grad: U, label: Option<String>) -> Self {
+        let id = generate_id();
         Self {
+            id,
             data,
             grad,
-            _backward: String::from(""),
-            _prev: 1,// hashmap? hashset?
-            _op: String::from(""),
+            op: Op::New,
+            backward: String::from(""),
+            prev: HashMap::new(),
+            label: label.unwrap_or(String::from("")),
         }
     }
 }
 
 // Add
-impl<T: Add<Output = T>, U> Add for Node<T, U> {
-    type Output = Self;
+impl<T, U> Add for Node<T, U>
+where
+    T: Add<Output = T> + Copy,
+    U: Copy,
+{
+    type Output = Node<T, U>;
 
     fn add(self, other: Self) -> Self::Output {
-        Self {
-            data: self.data + other.data,
-            grad: self.grad, // Can be propogated as result's grad
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-            _backward: String::from(""),
-            _prev: 1,// hashmap? hashset?
-            _op: String::from("+"),
+        Node {
+            id: generate_id(),
+            data: self.data + other.data,
+            grad: self.grad,
+            op: Op::Add,
+            backward: String::from(""),
+            prev,
+            label: String::from(""),
         }
     }
 }
 
 // Sub
-impl<T: Sub<Output = T>, U> Sub for Node<T, U> {
-    type Output = Self;
+impl<T, U> Sub for Node<T, U>
+where
+    T: Sub<Output = T> + Copy,
+    U: Copy,
+{
+    type Output = Node<T, U>;
 
     fn sub(self, other: Self) -> Self::Output {
-        Self {
-            data: self.data - other.data,
-            grad: self.grad, // Can be propogated as result's grad
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-            _backward: String::from(""),
-            _prev: 1,// hashmap? hashset?
-            _op: String::from("+"),
+        Node {
+            id: generate_id(),
+            data: self.data - other.data,
+            grad: self.grad,
+            op: Op::Sub,
+            backward: String::from(""),
+            prev,
+            label: String::from(""),
         }
     }
 }
 
 // Mul
-impl<T: Mul<Output = T>, U> Mul for Node<T, U> {
-    type Output = Self;
+impl<T, U> Mul for Node<T, U>
+where
+    T: Mul<Output = T> + Copy,
+    U: Copy,
+{
+    type Output = Node<T, U>;
 
     fn mul(self, other: Self) -> Self::Output {
-        Self {
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
+
+        Node {
+            id: generate_id(),
             data: self.data * other.data,
             grad: self.grad,
-
-            _backward: String::from(""),
-            _prev: 1,// hashmap? hashset?
-            _op: String::from("+"),
+            op: Op::Mul,
+            backward: String::from(""),
+            prev,
+            label: String::from(""),
         }
     }
 }
 
 // Div
-impl<T: Div<Output = T>, U> Div for Node<T, U> {
-    type Output = Self;
+impl<T, U> Div for Node<T, U>
+where
+    T: Div<Output = T> + Copy,
+    U: Copy,
+{
+    type Output = Node<T, U>;
 
     fn div(self, other: Self) -> Self::Output {
-        Self {
-            data: self.data / other.data,
-            grad: self.grad, // Can be propogated as result's grad
+        let mut prev = HashMap::new();
+        prev.insert(self.id, Rc::new(RefCell::new(self.clone())));
+        prev.insert(other.id, Rc::new(RefCell::new(other.clone())));
 
-            _backward: String::from(""),
-            _prev: 1,// hashmap? hashset?
-            _op: String::from("+"),
+        Node {
+            id: generate_id(),
+            data: self.data / other.data,
+            grad: self.grad,
+            op: Op::Div,
+            backward: String::from(""),
+            prev,
+            label: String::from(""),
         }
     }
 }
 
-// Should this be a trait/impl?
-fn print_type<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
+use std::fmt;
+
+impl fmt::Display for Op {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+        Op::New => write!(f, "NEW"),
+        Op::Add => write!(f, "+"),
+        Op::Sub => write!(f, "-"),
+        Op::Mul => write!(f, "*"),
+        Op::Div => write!(f, "/"),
+        }
+    }
 }
 
-// Trace the graph
-// fn trace(root: &Value) {
-//     // Find all nodes
-// }
+impl<T, U> fmt::Display for Node<T, U>
+where
+    T: fmt::Display + Clone,
+    U: fmt::Display + Clone,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "id: {}, label: {}, data: {}, grad: {}, backward: {}, op: {}, prev: {}",
+            self.id,
+            self.label,
+            self.data,
+            self.grad,
+            self.backward,
+            self.op,
+            format_prev(&self.prev)
+        )
+    }
+}
+
+trait FromF64: Sized {
+    fn from_f64(n: f64) -> Self;
+}
+
+impl FromF64 for f32 {
+    fn from_f64(n: f64) -> Self {
+        n as f32
+    }
+}
+
+impl FromF64 for f64 {
+    fn from_f64(n: f64) -> Self {
+        n
+    }
+}
+
+trait ToF64 {
+    fn to_f64(self) -> f64;
+}
+
+impl ToF64 for f32 {
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl ToF64 for f64 {
+    fn to_f64(self) -> f64 {
+        self
+    }
+}
+
+impl<T, U> Node<T, U>
+where
+    T: Copy + Clone + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + ToF64,
+    U: Copy + Clone + AddAssign + FromF64 + Mul<Output = U> + Add<Output = U>,
+{
+    fn derivative(&self, input: &Self) -> U {
+        match self.op {
+            Op::Add => U::from_f64(1.0),
+            Op::Sub => {
+                if self.id == input.id {
+                    U::from_f64(1.0)
+                } else {
+                    U::from_f64(-1.0)
+                }
+            }
+            Op::Mul => {
+                let other_id = self.prev.keys().find(|&&k| k != input.id).unwrap();
+                let other_value = self.prev.get(&other_id).unwrap().borrow().data.clone();
+                U::from_f64(other_value.to_f64())
+            }
+            Op::Div => {
+                if self.id == input.id {
+                    U::from_f64(1.0 / input.data.clone().to_f64())
+                } else {
+                    U::from_f64(-self.data.clone().to_f64() / (input.data.clone().to_f64() * input.data.clone().to_f64()))
+                }
+            }
+            _ => U::from_f64(0.0),
+        }
+    }    
+    
+    fn backward(self, grad_output: U) -> Node<T, U> {
+        let new_grad = self.grad + grad_output;
+        let new_prev = self.prev.iter()
+            .map(|(&k, v)| {
+                let input = v.borrow().clone();
+                let grad_input = self.derivative(&input) * grad_output;
+                (k, Rc::new(RefCell::new(input.backward(grad_input))))
+            })
+            .collect::<HashMap<_, _>>();
+
+        Node {
+            grad: new_grad,
+            prev: new_prev,
+            ..self
+        }
+    }
+}
+
+fn format_prev<T, U>(prev: &HashMap<usize, Rc<RefCell<Node<T, U>>>>) -> String
+where
+    T: fmt::Display + Clone,
+    U: fmt::Display + Clone,
+{
+    let entries: Vec<String> = prev
+        .iter()
+        .map(|(k, v)| format!("{}: {}", k, v.borrow()))
+        .collect();
+    format!("{{ {} }}", entries.join(", "))
+}
 
 fn main() {
+    let x = Node::new(4.0, 0.0, Some(String::from("X")));
+    let y = Node::new(5.0, 0.0, Some(String::from("Y")));
 
-    let x = Node::new(1.0, 0.0);
-    let y = Node::new(2.0, 1.0);
+    let c = x * y;
+    let new_c = c.backward(1.0);
 
-    let a: Node<f64, f64>;
-
-    a = x + y;
-
-    println!("data: {}, grad: {}", a.data, a.grad);
-    print_type(&a);
+    println!("Graph: {}", new_c);
 }

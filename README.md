@@ -56,6 +56,7 @@ Software support for (in order):
 - XLA
 
 Hardware library support for (in order):
+- Apple Accelerate (under development)
 - NVIDIA CUDA (under development)
 - Intel OneAPI
 - WASM + WebGPU

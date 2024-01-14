@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../Mesh.h"
+#include "../mesh.h"
 
 // Only exists to debug vals
 int main(){
@@ -15,11 +15,10 @@ int main(){
     int device_count = mesh->device_list->device_count;
 
     for(int i = 0; i < device_count; i++){
-
+        printf("API: %s\n", mesh->device_list->devices[i].api);
+        printf("Type: %s\n", mesh->device_list->devices[i].type);
         printf("Device ID: %d\n", mesh->device_list->devices[i].device_id);
         printf("Thread ID: %d\n", mesh->device_list->devices[i].thread_id);
-        printf("API ID: %s\n", mesh->device_list->devices[i].api_id);
-        printf("Type: %s\n\n", mesh->device_list->devices[i].type);
     }
 
     free_mesh(mesh);

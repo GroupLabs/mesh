@@ -1,0 +1,2 @@
+`cargo run` - compiles the project in dev mode. runtime is not optimized, but it compiles faster than release and gives debug info.
+`cargo build --release` - builds the project in release mode. runtime is optimized, but compiles slower and does not give debug info. run the build with `./target/release/autodiff`

@@ -5,7 +5,7 @@
 #include "darwin.h"
 
 #ifdef ACCELERATE_enabled
-#include "ops/ACCELERATE_ops.h"
+#include "../ops/ACCELERATE_ops.h"
 #endif
 #ifdef MKL_enabled
 #include "ops/MKL_ops.h"

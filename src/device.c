@@ -1,13 +1,9 @@
 // Device.h
 // Device manages each known device, and information on how to communicate.
 
-
 #include <stdlib.h> // check size vs stddef.h
-#include "Device.h"
+#include "device.h"
 
-// nullifies existing object, or initalizes new DeviceList object
-// Accepts: number of initial elements
-// Returns: void; pointer is now pointing to intialized (null) DeviceList object
 DeviceList *new_devicelist(size_t n) {
     DeviceList *p = (DeviceList*)malloc(sizeof(DeviceList));
     if(p) {

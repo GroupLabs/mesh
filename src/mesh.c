@@ -1,11 +1,15 @@
 // Mesh.h
 
 // Mesh provides an easy-to-use api that automatically selects a device to run on.
-#include "Mesh.h"
-#include "Device.h"
+#include "mesh.h"
+#include "device.h"
 
 #ifdef UNKNOWN_PROC
 #include "ops/NATURAL_ops.h"
+#endif
+
+#ifdef ACCELERATE_enabled
+#include "ops/ACCELERATE_ops.h"
 #endif
 
 Mesh* new_mesh(){
@@ -25,6 +29,12 @@ void config(Mesh* mesh_ptr){
     #ifdef UNKNOWN_PROC
     // get naturally available devices
     natural_config(mesh_ptr);
+    #endif
+
+    #ifdef ACCELERATE_enabled
+
+    ACCELERATE_config(mesh_ptr);
+
     #endif
 
     // for each system, build a seperate thread, trigger appropriate os config 

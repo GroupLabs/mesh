@@ -5,7 +5,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include "Device.h"
+#include "device.h"
 
 #define NUM_INITIAL_ELEMENTS 0
 
