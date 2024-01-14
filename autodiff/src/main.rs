@@ -282,7 +282,5 @@ fn main() {
     let c = x * y;
     let new_c = c.backward(1.0);
 
-    println!("Gradient of C: {}", new_c.grad);
     println!("Graph: {}", new_c);
-    
 }

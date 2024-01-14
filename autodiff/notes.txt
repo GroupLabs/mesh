@@ -1,2 +1,0 @@
-Run using 'cargo run' in the autodiff driectory.
-You can see the full graph after the backward pass. The gradients of the nodes are not updated :(.

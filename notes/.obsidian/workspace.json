@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "00104504fc84a080",
+        "id": "b609ab3587d08ac7",
         "type": "tabs",
         "children": [
           {
-            "id": "c97cedd31e631d4a",
+            "id": "32d2cf8ede9e736c",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -16,31 +16,19 @@
             }
           },
           {
-            "id": "b254c0052f5bac5a",
+            "id": "3a89de84ae9703b1",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "branch notes.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "5b975f2bb5fb771a",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "branch notes.md",
+                "file": "testing graph gen.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -106,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "branch notes.md",
+                "file": "testing graph gen.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -123,7 +111,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "branch notes.md",
+                "file": "testing graph gen.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -146,7 +134,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "branch notes.md"
+                "file": "testing graph gen.md"
               }
             }
           }
@@ -167,9 +155,9 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "5b975f2bb5fb771a",
+  "active": "6b99a9e3227c4697",
   "lastOpenFiles": [
-    "Untitled.md",
+    "similar projects.md",
     "branch notes.md",
     "running autodiff.md",
     "recommended reading.md",
