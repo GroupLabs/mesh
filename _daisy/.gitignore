@@ -1,0 +1,4 @@
+# artifacts
+bazel-*
+
+**/__pycache__
