@@ -24,7 +24,45 @@ using grpc::ServerBuilder;
 using grpc::ServerCompletionQueue;
 using grpc::ServerContext;
 
-#define DEBUG true
+namespace MyLogger {
+    enum VerbosityLevel {
+        NONE,
+        PEER_ERROR,
+        PEER_WARN,
+        PEER_INFO,
+        PEER_DEBUG
+    };
+
+    // Global verbosity level
+    VerbosityLevel currentVerbosity = PEER_DEBUG;
+
+    const std::string RESET_COLOR = "\033[0m";
+    const std::string RED_COLOR = "\033[31m";
+    const std::string YELLOW_COLOR = "\033[33m";
+    const std::string GREEN_COLOR = "\033[32m";
+    const std::string BLUE_COLOR = "\033[34m";
+
+    void logMessage(VerbosityLevel level, const std::string& message) {
+        if (level <= currentVerbosity) {
+            switch (level) {
+                case PEER_ERROR:
+                    std::cerr << RED_COLOR << "ERROR: " << message << RESET_COLOR << std::endl;
+                    break;
+                case PEER_WARN:
+                    std::cerr << YELLOW_COLOR << "WARN: " << message << RESET_COLOR << std::endl;
+                    break;
+                case PEER_INFO:
+                    std::cout << "INFO: " << message << std::endl;
+                    break;
+                case PEER_DEBUG:
+                    std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR << std::endl;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
 
 class MessengerClient {
 public:
@@ -41,7 +79,7 @@ public:
         if (status.ok()) {
             return response.reply();
         } else {
-            std::cerr << "RPC failed" << std::endl;
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "RPC failed");
             return "RPC failed";
         }
     }
@@ -55,7 +93,8 @@ public:
     ServerImpl() {
         node_id_ = generateUniqueId();
         getOwnIpAddress(own_ip_);
-        std::cout << "Node ID: " << node_id_ << std::endl;
+        MyLogger::logMessage(MyLogger::PEER_INFO, "Node ID: " + node_id_);
+        
     }
 
     ~ServerImpl() {
@@ -85,7 +124,8 @@ public:
 
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
-        std::cout << "Server listening on " << server_address << std::endl;
+        MyLogger::logMessage(MyLogger::PEER_INFO, "Server listening on " + server_address);
+
 
         // Start peer discovery tasks
         std::thread(&ServerImpl::BroadcastPresence, this).detach();
@@ -174,7 +214,8 @@ private:
                 broadcast_addr.sin_port = htons(port);
                 sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
             }
-            if (DEBUG) std::cout << "DEBUG: Broadcasted message: " << message << std::endl;
+            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Broadcasted message: " + message);
+
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
@@ -194,14 +235,15 @@ private:
         for (int port = 50052; port <= 50062; ++port) {
             listen_addr.sin_port = htons(port);
             if (bind(sockfd, (struct sockaddr*)&listen_addr, sizeof(listen_addr)) == 0) {
-                std::cout << "Successfully bound to port " << port << " for peer discovery." << std::endl;
+                MyLogger::logMessage(MyLogger::PEER_INFO, "Successfully bound to port " + std::to_string(port) + " for peer discovery.");
+
                 bound = true;
                 break;
             }
         }
 
         if (!bound) {
-            std::cerr << "Failed to bind socket to any port in range 50052-50062: " << strerror(errno) << std::endl;
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to bind socket to any port in range 50052-50062: " + std::string(strerror(errno)));
             close(sockfd);
             return;
         }
@@ -213,40 +255,39 @@ private:
         while (true) {
             int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&peer_addr, &addr_len);
             if (len < 0) {
-                std::cerr << "Failed to receive: " << strerror(errno) << std::endl;
+                MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to receive: " + std::string(strerror(errno)));
                 continue;
             }
             buffer[len] = '\0';
 
             std::string message(buffer);
 
-            if (DEBUG) std::cout << "DEBUG: Received message: " << message << std::endl;
+            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Received message: " + message);
 
             auto pos1 = message.find(',');
             auto pos2 = message.find(',', pos1 + 1);
             auto pos3 = message.find(',', pos2 + 1);
 
-            if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
-                std::string type = message.substr(0, pos1);
-                std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
-                int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
-                std::string sender_ip = message.substr(pos3 + 1);
+                    if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
+            std::string type = message.substr(0, pos1);
+            std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
+            int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
+            std::string sender_ip = message.substr(pos3 + 1);
 
-                char peer_ip[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
-            
-            if (DEBUG) std::cout << "DEBUG: Received message: " << message << std::endl;
+            char peer_ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
+        
+            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Received message: " + message);
 
             std::string own_message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
             if (type == "discovery" && message != own_message) {
-                std::cout << "Discovered peer: " << received_node_id << " at port " << grpc_port << " with IP " << peer_ip << std::endl;
-
+                MyLogger::logMessage(MyLogger::PEER_INFO, "Discovered peer: " + received_node_id + " at port " + std::to_string(grpc_port) + " with IP " + peer_ip);
                 // Create a gRPC client and send a message
                 std::string peer_address = std::string(peer_ip) + ":" + std::to_string(grpc_port);
                 MessengerClient client(grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials()));
-                std::cout << "Sending message to peer: " << "Hello from " + node_id_ + " to " + received_node_id << std::endl;
+                MyLogger::logMessage(MyLogger::PEER_INFO, "Sending message to peer: Hello from " + node_id_ + " to " + received_node_id);
                 std::string response = client.SendMessage("Hello from " + node_id_ + " to " + received_node_id);
-                std::cout << "Received response from peer: " << response << std::endl;
+                MyLogger::logMessage(MyLogger::PEER_INFO, "Received response from peer: " + response);
             }
         }
     }
@@ -263,7 +304,7 @@ void getOwnIpAddress(char* ip) {
     serv.sin_port = htons(kDnsPort);
 
     if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
-        std::cerr << "Connect failed: " << strerror(errno) << std::endl;
+        MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
         strcpy(ip, "127.0.0.1");
         return;
     }
@@ -271,7 +312,7 @@ void getOwnIpAddress(char* ip) {
     struct sockaddr_in name;
     socklen_t namelen = sizeof(name);
     if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
-        std::cerr << "getsockname failed: " << strerror(errno) << std::endl;
+        MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
         strcpy(ip, "127.0.0.1");
     } else {
         inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
