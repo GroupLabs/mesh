@@ -12,21 +12,50 @@
 #include <errno.h>
 #include "proto/messaging.grpc.pb.h"
 
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::Status;
+using messaging::Messenger;
+using messaging::MessageRequest;
+using messaging::MessageResponse;
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
 using grpc::ServerBuilder;
 using grpc::ServerCompletionQueue;
 using grpc::ServerContext;
-using grpc::Status;
-using messaging::Messenger;
-using messaging::MessageRequest;
-using messaging::MessageResponse;
+
+#define DEBUG true
+
+class MessengerClient {
+public:
+    MessengerClient(std::shared_ptr<Channel> channel)
+        : stub_(Messenger::NewStub(channel)) {}
+
+    std::string SendMessage(const std::string& message) {
+        MessageRequest request;
+        request.set_message(message);
+        MessageResponse response;
+        ClientContext context;
+        Status status = stub_->SendMessage(&context, request, &response);
+
+        if (status.ok()) {
+            return response.reply();
+        } else {
+            std::cerr << "RPC failed" << std::endl;
+            return "RPC failed";
+        }
+    }
+
+private:
+    std::unique_ptr<Messenger::Stub> stub_;
+};
 
 class ServerImpl final {
 public:
     ServerImpl() {
         node_id_ = generateUniqueId();
         getOwnIpAddress(own_ip_);
+        std::cout << "Node ID: " << node_id_ << std::endl;
     }
 
     ~ServerImpl() {
@@ -40,15 +69,15 @@ public:
         ServerBuilder builder;
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&service_);
-        
+
         // Set keep-alive options
         builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_time_ms", 60000));
         builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_timeout_ms", 20000));
         builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_permit_without_calls", 1));
-        
+
         // Enable compression
         builder.SetOption(grpc::MakeChannelArgumentOption("grpc.default_compression_algorithm", GRPC_COMPRESS_GZIP));
-        
+
         // Optimize resource usage
         builder.SetMaxReceiveMessageSize(1024 * 1024 * 10); // 10 MB
         builder.SetMaxSendMessageSize(1024 * 1024 * 10); // 10 MB
@@ -129,125 +158,131 @@ private:
     }
 
     void BroadcastPresence() {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    int broadcast = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+        int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        int broadcast = 1;
+        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
 
-    struct sockaddr_in broadcast_addr;
-    memset(&broadcast_addr, 0, sizeof(broadcast_addr));
-    broadcast_addr.sin_family = AF_INET;
-    broadcast_addr.sin_addr.s_addr = inet_addr("255.255.255.255");
+        struct sockaddr_in broadcast_addr;
+        memset(&broadcast_addr, 0, sizeof(broadcast_addr));
+        broadcast_addr.sin_family = AF_INET;
+        broadcast_addr.sin_addr.s_addr = inet_addr("255.255.255.255");
 
-    std::string message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+        std::string message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
 
-    while (true) {
-        for (int port = 50052; port <= 50062; ++port) {
-            broadcast_addr.sin_port = htons(port);
-            sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
+        while (true) {
+            for (int port = 50052; port <= 50062; ++port) {
+                broadcast_addr.sin_port = htons(port);
+                sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
+            }
+            if (DEBUG) std::cout << "DEBUG: Broadcasted message: " << message << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-        std::cout << "DEBUG: Broadcasted message: " << message << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-}
 
     void ListenForPeers() {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    int broadcast = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+        int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        int broadcast = 1;
+        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
 
-    struct sockaddr_in listen_addr;
-    memset(&listen_addr, 0, sizeof(listen_addr));
-    listen_addr.sin_family = AF_INET;
-    listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        struct sockaddr_in listen_addr;
+        memset(&listen_addr, 0, sizeof(listen_addr));
+        listen_addr.sin_family = AF_INET;
+        listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    // Try to bind to ports 50052-50062
-    bool bound = false;
-    for (int port = 50052; port <= 50062; ++port) {
-        listen_addr.sin_port = htons(port);
-        if (bind(sockfd, (struct sockaddr*)&listen_addr, sizeof(listen_addr)) == 0) {
-            std::cout << "Successfully bound to port " << port << " for peer discovery." << std::endl;
-            bound = true;
-            break;
+        // Try to bind to ports 50052-50062
+        bool bound = false;
+        for (int port = 50052; port <= 50062; ++port) {
+            listen_addr.sin_port = htons(port);
+            if (bind(sockfd, (struct sockaddr*)&listen_addr, sizeof(listen_addr)) == 0) {
+                std::cout << "Successfully bound to port " << port << " for peer discovery." << std::endl;
+                bound = true;
+                break;
+            }
         }
-    }
 
-    if (!bound) {
-        std::cerr << "Failed to bind socket to any port in range 50052-50062: " << strerror(errno) << std::endl;
-        close(sockfd);
-        return;
-    }
-
-    char buffer[1024];
-    struct sockaddr_in peer_addr;
-    socklen_t addr_len = sizeof(peer_addr);
-
-    while (true) {
-        int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&peer_addr, &addr_len);
-        if (len < 0) {
-            std::cerr << "Failed to receive: " << strerror(errno) << std::endl;
-            continue;
+        if (!bound) {
+            std::cerr << "Failed to bind socket to any port in range 50052-50062: " << strerror(errno) << std::endl;
+            close(sockfd);
+            return;
         }
-        buffer[len] = '\0';
 
-        std::string message(buffer);
-        std::cout << "DEBUG: Received message: " << message << std::endl;
+        char buffer[1024];
+        struct sockaddr_in peer_addr;
+        socklen_t addr_len = sizeof(peer_addr);
 
-        auto pos1 = message.find(',');
-        auto pos2 = message.find(',', pos1 + 1);
-        auto pos3 = message.find(',', pos2 + 1);
+        while (true) {
+            int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&peer_addr, &addr_len);
+            if (len < 0) {
+                std::cerr << "Failed to receive: " << strerror(errno) << std::endl;
+                continue;
+            }
+            buffer[len] = '\0';
 
-        if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
-            std::string type = message.substr(0, pos1);
-            std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
-            int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
-            std::string sender_ip = message.substr(pos3 + 1);
+            std::string message(buffer);
 
-            char peer_ip[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
+            if (DEBUG) std::cout << "DEBUG: Received message: " << message << std::endl;
 
-            // Debug statements to check IP addresses
-            std::cout << "DEBUG: peer_ip: " << peer_ip << ", own_ip_: " << own_ip_ << std::endl;
+            auto pos1 = message.find(',');
+            auto pos2 = message.find(',', pos1 + 1);
+            auto pos3 = message.find(',', pos2 + 1);
 
-            if (type == "discovery" && received_node_id != node_id_ && std::string(peer_ip) != std::string(own_ip_)) {
+            if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
+                std::string type = message.substr(0, pos1);
+                std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
+                int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
+                std::string sender_ip = message.substr(pos3 + 1);
+
+                char peer_ip[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
+            
+            if (DEBUG) std::cout << "DEBUG: Received message: " << message << std::endl;
+
+            std::string own_message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+            if (type == "discovery" && message != own_message) {
                 std::cout << "Discovered peer: " << received_node_id << " at port " << grpc_port << " with IP " << peer_ip << std::endl;
+
+                // Create a gRPC client and send a message
+                std::string peer_address = std::string(peer_ip) + ":" + std::to_string(grpc_port);
+                MessengerClient client(grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials()));
+                std::cout << "Sending message to peer: " << "Hello from " + node_id_ + " to " + received_node_id << std::endl;
+                std::string response = client.SendMessage("Hello from " + node_id_ + " to " + received_node_id);
+                std::cout << "Received response from peer: " << response << std::endl;
             }
         }
     }
 }
 
+void getOwnIpAddress(char* ip) {
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    const char* kGoogleDnsIp = "8.8.8.8";
+    uint16_t kDnsPort = 53;
+    struct sockaddr_in serv;
+    memset(&serv, 0, sizeof(serv));
+    serv.sin_family = AF_INET;
+    serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+    serv.sin_port = htons(kDnsPort);
 
-    void getOwnIpAddress(char* ip) {
-        int sock = socket(AF_INET, SOCK_DGRAM, 0);
-        const char* kGoogleDnsIp = "8.8.8.8";
-        uint16_t kDnsPort = 53;
-        struct sockaddr_in serv;
-        memset(&serv, 0, sizeof(serv));
-        serv.sin_family = AF_INET;
-        serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
-        serv.sin_port = htons(kDnsPort);
-
-        if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
-            std::cerr << "Connect failed: " << strerror(errno) << std::endl;
-            strcpy(ip, "127.0.0.1");
-            return;
-        }
-
-        struct sockaddr_in name;
-        socklen_t namelen = sizeof(name);
-        if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
-            std::cerr << "getsockname failed: " << strerror(errno) << std::endl;
-            strcpy(ip, "127.0.0.1");
-        } else {
-            inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
-        }
-
-        close(sock);
+    if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
+        std::cerr << "Connect failed: " << strerror(errno) << std::endl;
+        strcpy(ip, "127.0.0.1");
+        return;
     }
+
+    struct sockaddr_in name;
+    socklen_t namelen = sizeof(name);
+    if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
+        std::cerr << "getsockname failed: " << strerror(errno) << std::endl;
+        strcpy(ip, "127.0.0.1");
+    } else {
+        inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
+    }
+
+    close(sock);
+}
 };
 
 int main(int argc, char** argv) {
-    ServerImpl server;
-    server.Run();
-
-    return 0;
+ServerImpl server;
+server.Run();
+return 0;
 }
