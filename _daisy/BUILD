@@ -26,3 +26,14 @@ cc_binary(
         ":messaging_cc_grpc",
     ],
 )
+
+cc_binary(
+    name = "tests",
+    srcs = ["tests/torch.cc"],
+    deps = [
+        "@libtorch//:libtorch",
+    ],
+    copts = ["-std=c++17"],
+    linkopts = [
+    ],
+)

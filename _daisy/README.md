@@ -12,7 +12,13 @@ _daisy is the name of the project built for distributed inference. This will lat
 
 `bazel-bin/main`
 
-4. Clean with:
+`bazel run --enable_bzlmod=false //:main`
+
+4. Test with:
+
+`bazel test //:tests`
+
+5. Clean with:
 
 `bazel clean --expunge `
 

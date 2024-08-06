@@ -18,3 +18,46 @@ load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 grpc_deps()
 load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
 grpc_extra_deps()
+
+http_archive(
+    name = "rules_cc",
+    urls = ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.1/rules_cc-0.0.1.tar.gz"],
+    sha256 = "4dccbfd22c0def164c8f47458bd50e0c7148f3d92002cdb459c2a96a68498241",
+)
+
+http_archive(
+    name = "libtorch",
+    urls = ["https://download.pytorch.org/libtorch/cpu/libtorch-macos-arm64-2.4.0.zip"],
+    strip_prefix = "libtorch",
+    build_file_content = """
+cc_library(
+    name = "libtorch",
+    srcs = glob([
+        "lib/libc10.dylib",
+        "lib/libfbjni.dylib",
+        "lib/libomp.dylib",
+        "lib/libpytorch_jni.dylib",
+        "lib/libshm.dylib",
+        "lib/libtorch.dylib",
+        "lib/libtorch_cpu.dylib",
+        "lib/libtorch_global_deps.dylib",
+        "lib/*.so",
+        "lib/*.dll",
+        "lib/*.a",
+    ]),
+    hdrs = glob([
+        "include/**/*.h",
+        "include/**/*.hpp",
+    ]),
+    includes = [
+        "include",
+        "include/torch/csrc/api/include",
+    ],
+    strip_include_prefix = "include",
+    visibility = ["//visibility:public"],
+    copts = [
+        "-std=c++17",
+    ],
+)
+"""
+)
