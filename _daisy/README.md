@@ -16,7 +16,7 @@ _daisy is the name of the project built for distributed inference. This will lat
 
 4. Test with:
 
-`bazel test //:tests`
+`bazel run --enable_bzlmod=false //:tests`
 
 5. Clean with:
 
