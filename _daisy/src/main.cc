@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <errno.h>
+#include <chrono>
+#include <mutex>
+#include <map>
 #include "proto/messaging.grpc.pb.h"
 
 using grpc::Channel;
@@ -18,6 +21,10 @@ using grpc::Status;
 using messaging::Messenger;
 using messaging::MessageRequest;
 using messaging::MessageResponse;
+using messaging::HeartbeatRequest;
+using messaging::HeartbeatResponse;
+using messaging::TopologyUpdateRequest;
+using messaging::TopologyUpdateResponse;
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
 using grpc::ServerBuilder;
@@ -64,6 +71,16 @@ namespace MyLogger {
     }
 }
 
+
+struct PeerInfo {
+    std::string node_id;
+    std::string ip_address;
+    int grpc_port;
+    std::chrono::system_clock::time_point last_seen;
+    std::shared_ptr<grpc::Channel> channel;
+    std::unique_ptr<Messenger::Stub> stub;
+};
+
 class MessengerClient {
 public:
     MessengerClient(std::shared_ptr<Channel> channel)
@@ -79,9 +96,26 @@ public:
         if (status.ok()) {
             return response.reply();
         } else {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "RPC failed");
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "RPC failed: " + status.error_message());
             return "RPC failed";
         }
+    }
+
+    bool Heartbeat() {
+        HeartbeatRequest request;
+        HeartbeatResponse response;
+        ClientContext context;
+        Status status = stub_->Heartbeat(&context, request, &response);
+        return status.ok();
+    }
+
+    bool UpdateTopology(const std::string& topology) {
+        TopologyUpdateRequest request;
+        request.set_topology(topology);
+        TopologyUpdateResponse response;
+        ClientContext context;
+        Status status = stub_->UpdateTopology(&context, request, &response);
+        return status.ok();
     }
 
 private:
@@ -94,7 +128,6 @@ public:
         node_id_ = generateUniqueId();
         getOwnIpAddress(own_ip_);
         MyLogger::logMessage(MyLogger::PEER_INFO, "Node ID: " + node_id_);
-        
     }
 
     ~ServerImpl() {
@@ -126,10 +159,11 @@ public:
         server_ = builder.BuildAndStart();
         MyLogger::logMessage(MyLogger::PEER_INFO, "Server listening on " + server_address);
 
-
-        // Start peer discovery tasks
+        // Start peer discovery and management tasks
         std::thread(&ServerImpl::BroadcastPresence, this).detach();
         std::thread(&ServerImpl::ListenForPeers, this).detach();
+        std::thread(&ServerImpl::ManagePeerConnections, this).detach();
+        std::thread(&ServerImpl::GossipTopology, this).detach();
 
         HandleRpcs();
     }
@@ -140,6 +174,8 @@ private:
     std::unique_ptr<ServerCompletionQueue> cq_;
     Messenger::AsyncService service_;
     std::unique_ptr<Server> server_;
+    std::map<std::string, PeerInfo> peers_;
+    std::mutex peers_mutex_;
 
     std::string generateUniqueId() {
         std::random_device rd;
@@ -216,7 +252,7 @@ private:
             }
             MyLogger::logMessage(MyLogger::PEER_DEBUG, "Broadcasted message: " + message);
 
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(10));
         }
     }
 
@@ -236,7 +272,6 @@ private:
             listen_addr.sin_port = htons(port);
             if (bind(sockfd, (struct sockaddr*)&listen_addr, sizeof(listen_addr)) == 0) {
                 MyLogger::logMessage(MyLogger::PEER_INFO, "Successfully bound to port " + std::to_string(port) + " for peer discovery.");
-
                 bound = true;
                 break;
             }
@@ -261,69 +296,124 @@ private:
             buffer[len] = '\0';
 
             std::string message(buffer);
-
-            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Received message: " + message);
-
             auto pos1 = message.find(',');
             auto pos2 = message.find(',', pos1 + 1);
             auto pos3 = message.find(',', pos2 + 1);
 
-                    if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
-            std::string type = message.substr(0, pos1);
-            std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
-            int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
-            std::string sender_ip = message.substr(pos3 + 1);
+            if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
+                std::string type = message.substr(0, pos1);
+                std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
+                int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
+                std::string sender_ip = message.substr(pos3 + 1);
 
-            char peer_ip[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
-        
-            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Received message: " + message);
+                char peer_ip[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
 
-            std::string own_message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
-            if (type == "discovery" && message != own_message) {
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Discovered peer: " + received_node_id + " at port " + std::to_string(grpc_port) + " with IP " + peer_ip);
-                // Create a gRPC client and send a message
-                std::string peer_address = std::string(peer_ip) + ":" + std::to_string(grpc_port);
-                MessengerClient client(grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials()));
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Sending message to peer: Hello from " + node_id_ + " to " + received_node_id);
-                std::string response = client.SendMessage("Hello from " + node_id_ + " to " + received_node_id);
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Received response from peer: " + response);
+                std::string own_message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+                if (type == "discovery" && message != own_message) {
+                    AddOrUpdatePeer(received_node_id, peer_ip, grpc_port);
+                }
             }
         }
     }
-}
 
-void getOwnIpAddress(char* ip) {
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    const char* kGoogleDnsIp = "8.8.8.8";
-    uint16_t kDnsPort = 53;
-    struct sockaddr_in serv;
-    memset(&serv, 0, sizeof(serv));
-    serv.sin_family = AF_INET;
-    serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
-    serv.sin_port = htons(kDnsPort);
-
-    if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
-        MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
-        strcpy(ip, "127.0.0.1");
-        return;
+    void AddOrUpdatePeer(const std::string& peer_id, const std::string& peer_ip, int peer_port) {
+        std::lock_guard<std::mutex> lock(peers_mutex_);
+        std::string peer_address = peer_ip + ":" + std::to_string(peer_port);
+        
+        if (peers_.find(peer_id) == peers_.end()) {
+            PeerInfo new_peer;
+            new_peer.node_id = peer_id;
+            new_peer.ip_address = peer_ip;
+            new_peer.grpc_port = peer_port;
+            new_peer.last_seen = std::chrono::system_clock::now();
+            new_peer.channel = grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials());
+            new_peer.stub = Messenger::NewStub(new_peer.channel);
+            peers_[peer_id] = std::move(new_peer);
+            MyLogger::logMessage(MyLogger::PEER_INFO, "Added new peer: " + peer_id + " at " + peer_address);
+        } else {
+            peers_[peer_id].last_seen = std::chrono::system_clock::now();
+            MyLogger::logMessage(MyLogger::PEER_INFO, "Updated existing peer: " + peer_id + " at " + peer_address);
+        }
     }
 
-    struct sockaddr_in name;
-    socklen_t namelen = sizeof(name);
-    if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
-        MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
-        strcpy(ip, "127.0.0.1");
-    } else {
-        inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
+    void ManagePeerConnections() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+            std::lock_guard<std::mutex> lock(peers_mutex_);
+            auto now = std::chrono::system_clock::now();
+            for (auto it = peers_.begin(); it != peers_.end();) {
+                if (now - it->second.last_seen > std::chrono::minutes(2)) {
+                    MessengerClient client(it->second.channel);
+                    if (client.Heartbeat()) {
+                        it->second.last_seen = now;
+                        ++it;
+                    } else {
+                        MyLogger::logMessage(MyLogger::PEER_WARN, "Peer " + it->first + " is unresponsive. Removing.");
+                        it = peers_.erase(it);
+                    }
+                } else {
+                    ++it;
+                }
+            }
+        }
     }
 
-    close(sock);
-}
+    void GossipTopology() {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+            std::string topology = GetNetworkTopology();
+            std::lock_guard<std::mutex> lock(peers_mutex_);
+            for (const auto& peer : peers_) {
+                MessengerClient client(peer.second.channel);
+                if (!client.UpdateTopology(topology)) {
+                    MyLogger::logMessage(MyLogger::PEER_WARN, "Failed to update topology for peer: " + peer.first);
+                }
+            }
+        }
+    }
+
+    std::string GetNetworkTopology() {
+        std::stringstream ss;
+        std::lock_guard<std::mutex> lock(peers_mutex_);
+        ss << node_id_ << "," << own_ip_ << ",50051;";
+        for (const auto& peer : peers_) {
+            ss << peer.second.node_id << "," << peer.second.ip_address << "," << peer.second.grpc_port << ";";
+        }
+        return ss.str();
+    }
+
+    void getOwnIpAddress(char* ip) {
+        int sock = socket(AF_INET, SOCK_DGRAM, 0);
+        const char* kGoogleDnsIp = "8.8.8.8";
+        uint16_t kDnsPort = 53;
+        struct sockaddr_in serv;
+        memset(&serv, 0, sizeof(serv));
+        serv.sin_family = AF_INET;
+        serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+        serv.sin_port = htons(kDnsPort);
+
+        if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
+            strcpy(ip, "127.0.0.1");
+            return;
+        }
+
+        struct sockaddr_in name;
+        socklen_t namelen = sizeof(name);
+        if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
+            strcpy(ip, "127.0.0.1");
+        } else {
+            inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
+        }
+
+        close(sock);
+    }
 };
 
 int main(int argc, char** argv) {
-ServerImpl server;
-server.Run();
-return 0;
+    ServerImpl server;
+    server.Run();
+    return 0;
 }
