@@ -118,6 +118,38 @@ public:
         return status.ok();
     }
 
+    std::string GetNetworkTopology() {
+        messaging::NetworkTopologyRequest request;
+        messaging::NetworkTopologyResponse response;
+        ClientContext context;
+        Status status = stub_->GetNetworkTopology(&context, request, &response);
+        if (status.ok()) {
+            return response.topology();
+        } else {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "GetNetworkTopology RPC failed: " + status.error_message());
+            return "";
+        }
+    }
+
+    bool GetHeartbeat() {
+        HeartbeatRequest request;
+        HeartbeatResponse response;
+        ClientContext context;
+        
+        // Add a 5-second timeout
+        std::chrono::system_clock::time_point deadline = 
+            std::chrono::system_clock::now() + std::chrono::seconds(5);
+        context.set_deadline(deadline);
+        
+        Status status = stub_->GetHeartbeat(&context, request, &response);
+        if (status.ok()) {
+            return response.alive();
+        } else {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "GetHeartbeat RPC failed: " + status.error_message());
+            return false;
+        }
+    }
+
 private:
     std::unique_ptr<Messenger::Stub> stub_;
 };
@@ -191,47 +223,122 @@ private:
 
     class CallData {
     public:
-        CallData(Messenger::AsyncService* service, ServerCompletionQueue* cq)
-            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+        enum class RequestType {
+            UNKNOWN,
+            SEND_MESSAGE,
+            GET_NETWORK_TOPOLOGY,
+            GET_HEARTBEAT
+        };
+
+        CallData(ServerImpl* server, Messenger::AsyncService* service, ServerCompletionQueue* cq)
+            : server_(server), service_(service), cq_(cq),
+              message_responder_(&ctx_), topology_responder_(&ctx_), heartbeat_responder_(&ctx_),
+              status_(CREATE), request_type_(RequestType::UNKNOWN) {
             Proceed();
         }
 
-        void Proceed() {
-            if (status_ == CREATE) {
-                status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
-            } else if (status_ == PROCESS) {
-                new CallData(service_, cq_);
-                reply_.set_reply("Server received: " + request_.message());
-                status_ = FINISH;
-                responder_.Finish(reply_, Status::OK, this);
-            } else {
-                GPR_ASSERT(status_ == FINISH);
-                delete this;
-            }
+        ServerAsyncResponseWriter<messaging::MessageResponse>& GetMessageResponder() {
+            return message_responder_;
+        }
+
+        ServerAsyncResponseWriter<messaging::NetworkTopologyResponse>& GetTopologyResponder() {
+            return topology_responder_;
+        }
+
+        ServerAsyncResponseWriter<messaging::HeartbeatResponse>& GetHeartbeatResponder() {
+            return heartbeat_responder_;
+        }
+
+void Proceed() {
+    if (status_ == CREATE) {
+        status_ = PROCESS;
+        service_->RequestSendMessage(&ctx_, &message_request_, &GetMessageResponder(), cq_, cq_, this);
+        service_->RequestGetNetworkTopology(&ctx_, &topology_request_, &GetTopologyResponder(), cq_, cq_, this);
+        service_->RequestGetHeartbeat(&ctx_, &heartbeat_request_, &GetHeartbeatResponder(), cq_, cq_, this);
+    } else if (status_ == PROCESS) {
+        new CallData(server_, service_, cq_);
+
+        if (ctx_.IsCancelled()) {
+            status_ = FINISH;
+        } else if (request_type_ == RequestType::SEND_MESSAGE) {
+            HandleSendMessage();
+        } else if (request_type_ == RequestType::GET_NETWORK_TOPOLOGY) {
+            HandleGetNetworkTopology();
+        } else if (request_type_ == RequestType::GET_HEARTBEAT) {
+            HandleGetHeartbeat();
+        }
+    } else {
+        GPR_ASSERT(status_ == FINISH);
+        delete this;
+    }
+}
+
+        void SetRequestType(RequestType type) {
+            request_type_ = type;
         }
 
     private:
+        void HandleSendMessage() {
+            message_reply_.set_reply("Server received: " + message_request_.message());
+            status_ = FINISH;
+            message_responder_.Finish(message_reply_, Status::OK, this);
+        }
+
+        void HandleGetNetworkTopology() {
+            topology_reply_.set_topology(server_->GetNetworkTopology());
+            status_ = FINISH;
+            topology_responder_.Finish(topology_reply_, Status::OK, this);
+        }
+
+        void HandleGetHeartbeat() {
+            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Handling GetHeartbeat request");
+            heartbeat_reply_.set_alive(true);
+            status_ = FINISH;
+            heartbeat_responder_.Finish(heartbeat_reply_, Status::OK, this);
+        }
+
+        ServerImpl* server_;
         Messenger::AsyncService* service_;
         ServerCompletionQueue* cq_;
         ServerContext ctx_;
-        MessageRequest request_;
-        MessageResponse reply_;
-        ServerAsyncResponseWriter<MessageResponse> responder_;
+
+        messaging::MessageRequest message_request_;
+        messaging::MessageResponse message_reply_;
+        ServerAsyncResponseWriter<messaging::MessageResponse> message_responder_;
+
+        messaging::NetworkTopologyRequest topology_request_;
+        messaging::NetworkTopologyResponse topology_reply_;
+        ServerAsyncResponseWriter<messaging::NetworkTopologyResponse> topology_responder_;
+
+        messaging::HeartbeatRequest heartbeat_request_;
+        messaging::HeartbeatResponse heartbeat_reply_;
+        ServerAsyncResponseWriter<messaging::HeartbeatResponse> heartbeat_responder_;
+
         enum CallStatus { CREATE, PROCESS, FINISH };
         CallStatus status_;
+        RequestType request_type_;
     };
 
-    void HandleRpcs() {
-        new CallData(&service_, cq_.get());
-        void* tag;
-        bool ok;
-        while (true) {
-            GPR_ASSERT(cq_->Next(&tag, &ok));
-            GPR_ASSERT(ok);
-            static_cast<CallData*>(tag)->Proceed();
+void HandleRpcs() {
+    new CallData(this, &service_, cq_.get());
+    void* tag;
+    bool ok;
+    while (true) {
+        GPR_ASSERT(cq_->Next(&tag, &ok));
+        GPR_ASSERT(ok);
+        CallData* call_data = static_cast<CallData*>(tag);
+        
+        if (dynamic_cast<ServerAsyncResponseWriter<messaging::HeartbeatResponse>*>(&call_data->GetHeartbeatResponder())) {
+            call_data->SetRequestType(CallData::RequestType::GET_HEARTBEAT);
+        } else if (dynamic_cast<ServerAsyncResponseWriter<messaging::NetworkTopologyResponse>*>(&call_data->GetTopologyResponder())) {
+            call_data->SetRequestType(CallData::RequestType::GET_NETWORK_TOPOLOGY);
+        } else if (dynamic_cast<ServerAsyncResponseWriter<messaging::MessageResponse>*>(&call_data->GetMessageResponder())) {
+            call_data->SetRequestType(CallData::RequestType::SEND_MESSAGE);
         }
+        
+        call_data->Proceed();
     }
+}
 
     void BroadcastPresence() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);

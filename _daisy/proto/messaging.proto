@@ -2,44 +2,43 @@ syntax = "proto3";
 
 package messaging;
 
-// The service definition for the Messenger service.
 service Messenger {
-    // Sends a message to the server and receives a response.
-    rpc SendMessage(MessageRequest) returns (MessageResponse);
+  // Leave as is
+  rpc SendMessage (MessageRequest) returns (MessageResponse) {}
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+  rpc UpdateTopology (TopologyUpdateRequest) returns (TopologyUpdateResponse) {}
 
-    // Checks if the server is alive.
-    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
-
-    // Updates the network topology in the server.
-    rpc UpdateTopology(TopologyUpdateRequest) returns (TopologyUpdateResponse);
+  // New methods
+  rpc GetNetworkTopology (NetworkTopologyRequest) returns (NetworkTopologyResponse) {}
+  rpc GetHeartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
 }
 
-// The message request for sending a message.
+// Leave as is
 message MessageRequest {
-    string message = 1;
+  string message = 1;
 }
 
-// The message response that returns the server's reply.
 message MessageResponse {
-    string reply = 1;
+  string reply = 1;
 }
 
-// The heartbeat request for checking the server's status.
-message HeartbeatRequest {
-    // No fields are necessary for a heartbeat request.
-}
+message HeartbeatRequest {}
 
-// The heartbeat response to confirm the server's status.
 message HeartbeatResponse {
-    bool success = 1;  // True if the server is alive.
+  bool alive = 1;
 }
 
-// The request to update the network topology.
 message TopologyUpdateRequest {
-    string topology = 1;  // Contains the topology information.
+  string topology = 1;
 }
 
-// The response after updating the network topology.
 message TopologyUpdateResponse {
-    bool success = 1;  // True if the topology update was successful.
+  bool success = 1;
+}
+
+// New messages
+message NetworkTopologyRequest {}
+
+message NetworkTopologyResponse {
+  string topology = 1;
 }
