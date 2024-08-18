@@ -27,6 +27,34 @@ cc_binary(
     ],
 )
 
+
+proto_library(
+    name = "networking_proto",
+    srcs = ["proto/networking.proto"],
+)
+
+cc_proto_library(
+    name = "networking_cc_proto",
+    deps = [":networking_proto"],
+)
+
+cc_grpc_library(
+    name = "networking_cc_grpc",
+    srcs = [":networking_proto"],
+    grpc_only = True,
+    deps = [":networking_cc_proto"],
+)
+
+cc_binary(
+    name = "networking",
+    srcs = ["src/networking.cc"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        ":networking_cc_grpc",
+    ],
+)
+
+
 cc_binary(
     name = "tests",
     srcs = ["tests/torch.cc"],
