@@ -45,7 +45,7 @@ const std::string YELLOW_COLOR = "\033[33m";
 const std::string GREEN_COLOR = "\033[32m";
 const std::string BLUE_COLOR = "\033[34m";
 
-void logMessage(VerbosityLevel level, const std::string& message) {
+void logMessage(VerbosityLevel level, const std::string &message) {
     if (level <= currentVerbosity) {
         switch (level) {
             case PEER_ERROR:
@@ -84,7 +84,7 @@ class MessengerClient {
     MessengerClient(std::shared_ptr<Channel> channel)
         : stub_(Messenger::NewStub(channel)) {}
 
-    std::string SendMessage(const std::string& message) {
+    std::string SendMessage(const std::string &message) {
         MessageRequest request;
         request.set_message("Processing: " + message);
         MessageResponse response;
@@ -108,7 +108,7 @@ class MessengerClient {
         return status.ok();
     }
 
-    bool UpdateTopology(const std::string& topology) {
+    bool UpdateTopology(const std::string &topology) {
         TopologyUpdateRequest request;
         request.set_topology(topology);
         TopologyUpdateResponse response;
@@ -194,7 +194,7 @@ class ServerImpl final {
         Proceed() = 0;  // Pure virtual function, making this an abstract class
         virtual ~BaseCallData() {}  // Virtual destructor
     };
-    
+
     class HeartbeatCallData : public BaseCallData {
        public:
         HeartbeatCallData(Messenger::AsyncService *service,
@@ -234,8 +234,9 @@ class ServerImpl final {
     };
 
     class MessageCallData : public BaseCallData {
-    public:
-        MessageCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+       public:
+        MessageCallData(Messenger::AsyncService *service,
+                        ServerCompletionQueue *cq)
             : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
             Proceed();
         }
@@ -243,7 +244,8 @@ class ServerImpl final {
         void Proceed() override {
             if (status_ == CREATE) {
                 status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
+                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_,
+                                             cq_, this);
             } else if (status_ == PROCESS) {
                 response_.set_message(request_.message());
                 new MessageCallData(service_, cq_);
@@ -255,7 +257,7 @@ class ServerImpl final {
             }
         }
 
-    private:
+       private:
         Messenger::AsyncService *service_;
         ServerCompletionQueue *cq_;
         ServerContext ctx_;
@@ -268,9 +270,9 @@ class ServerImpl final {
         CallStatus status_;
     };
 
-
     void HandleRpcs() {
-        new HeartbeatCallData(&service_, cq_.get());  // For handling Heartbeat RPC
+        new HeartbeatCallData(&service_,
+                              cq_.get());  // For handling Heartbeat RPC
         new MessageCallData(&service_, cq_.get());  // For handling Message RPC
 
         void *tag;
@@ -302,7 +304,7 @@ class ServerImpl final {
             for (int port = 50052; port <= 50062; ++port) {
                 broadcast_addr.sin_port = htons(port);
                 sendto(sockfd, message.c_str(), message.size(), 0,
-                       (struct sockaddr*)&broadcast_addr,
+                       (struct sockaddr *)&broadcast_addr,
                        sizeof(broadcast_addr));
             }
             MyLogger::logMessage(MyLogger::PEER_DEBUG,
@@ -327,7 +329,7 @@ class ServerImpl final {
         bool bound = false;
         for (int port = 50052; port <= 50062; ++port) {
             listen_addr.sin_port = htons(port);
-            if (bind(sockfd, (struct sockaddr*)&listen_addr,
+            if (bind(sockfd, (struct sockaddr *)&listen_addr,
                      sizeof(listen_addr)) == 0) {
                 MyLogger::logMessage(MyLogger::PEER_INFO,
                                      "Successfully bound to port " +
@@ -353,7 +355,7 @@ class ServerImpl final {
 
         while (true) {
             int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
-                               (struct sockaddr*)&peer_addr, &addr_len);
+                               (struct sockaddr *)&peer_addr, &addr_len);
             if (len < 0) {
                 MyLogger::logMessage(
                     MyLogger::PEER_ERROR,
@@ -389,7 +391,7 @@ class ServerImpl final {
         }
     }
 
-    void AddOrUpdatePeer(const std::string& peer_id, const std::string& peer_ip,
+    void AddOrUpdatePeer(const std::string &peer_id, const std::string &peer_ip,
                          int peer_port) {
         std::lock_guard<std::mutex> lock(peers_mutex_);
         std::string peer_address = peer_ip + ":" + std::to_string(peer_port);
@@ -444,7 +446,7 @@ class ServerImpl final {
             std::this_thread::sleep_for(std::chrono::seconds(60));
             std::string topology = GetNetworkTopology();
             std::lock_guard<std::mutex> lock(peers_mutex_);
-            for (const auto& peer : peers_) {
+            for (const auto &peer : peers_) {
                 MessengerClient client(peer.second.channel);
                 if (!client.UpdateTopology(topology)) {
                     MyLogger::logMessage(
@@ -459,16 +461,16 @@ class ServerImpl final {
         std::stringstream ss;
         std::lock_guard<std::mutex> lock(peers_mutex_);
         ss << node_id_ << "," << own_ip_ << ",50051;";
-        for (const auto& peer : peers_) {
+        for (const auto &peer : peers_) {
             ss << peer.second.node_id << "," << peer.second.ip_address << ","
                << peer.second.grpc_port << ";";
         }
         return ss.str();
     }
 
-    void getOwnIpAddress(char* ip) {
+    void getOwnIpAddress(char *ip) {
         int sock = socket(AF_INET, SOCK_DGRAM, 0);
-        const char* kGoogleDnsIp = "8.8.8.8";
+        const char *kGoogleDnsIp = "8.8.8.8";
         uint16_t kDnsPort = 53;
         struct sockaddr_in serv;
         memset(&serv, 0, sizeof(serv));
@@ -476,7 +478,7 @@ class ServerImpl final {
         serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
         serv.sin_port = htons(kDnsPort);
 
-        if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
+        if (connect(sock, (const struct sockaddr *)&serv, sizeof(serv)) != 0) {
             MyLogger::logMessage(
                 MyLogger::PEER_ERROR,
                 "Connect failed: " + std::string(strerror(errno)));
@@ -486,7 +488,7 @@ class ServerImpl final {
 
         struct sockaddr_in name;
         socklen_t namelen = sizeof(name);
-        if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
+        if (getsockname(sock, (struct sockaddr *)&name, &namelen) != 0) {
             MyLogger::logMessage(
                 MyLogger::PEER_ERROR,
                 "Connect failed: " + std::string(strerror(errno)));
@@ -507,7 +509,7 @@ class ServerImpl final {
     std::mutex peers_mutex_;
 };
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     ServerImpl server;
     server.Run();
     return 0;
