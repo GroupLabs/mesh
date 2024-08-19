@@ -1,76 +1,74 @@
+#include <arpa/inet.h>
+#include <errno.h>
+#include <grpcpp/grpcpp.h>
+#include <netdb.h>
+#include <unistd.h>
+
+#include <chrono>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <memory>
-#include <string>
-#include <thread>
+#include <mutex>
 #include <random>
 #include <sstream>
-#include <iomanip>
-#include <grpcpp/grpcpp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <errno.h>
-#include <chrono>
-#include <mutex>
-#include <map>
+#include <string>
+#include <thread>
+
 #include "proto/networking.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
-using grpc::Status;
-using messaging::Messenger;
-using messaging::MessageRequest;
-using messaging::MessageResponse;
-using messaging::HeartbeatRequest;
-using messaging::HeartbeatResponse;
-using messaging::TopologyUpdateRequest;
-using messaging::TopologyUpdateResponse;
 using grpc::Server;
 using grpc::ServerAsyncResponseWriter;
 using grpc::ServerBuilder;
 using grpc::ServerCompletionQueue;
 using grpc::ServerContext;
+using grpc::Status;
+using messaging::HeartbeatRequest;
+using messaging::HeartbeatResponse;
+using messaging::MessageRequest;
+using messaging::MessageResponse;
+using messaging::Messenger;
+using messaging::TopologyUpdateRequest;
+using messaging::TopologyUpdateResponse;
 
 namespace MyLogger {
-    enum VerbosityLevel {
-        NONE,
-        PEER_ERROR,
-        PEER_WARN,
-        PEER_INFO,
-        PEER_DEBUG
-    };
+enum VerbosityLevel { NONE, PEER_ERROR, PEER_WARN, PEER_INFO, PEER_DEBUG };
 
-    // Global verbosity level
-    VerbosityLevel currentVerbosity = PEER_DEBUG;
+// Global verbosity level
+VerbosityLevel currentVerbosity = PEER_DEBUG;
 
-    const std::string RESET_COLOR = "\033[0m";
-    const std::string RED_COLOR = "\033[31m";
-    const std::string YELLOW_COLOR = "\033[33m";
-    const std::string GREEN_COLOR = "\033[32m";
-    const std::string BLUE_COLOR = "\033[34m";
+const std::string RESET_COLOR = "\033[0m";
+const std::string RED_COLOR = "\033[31m";
+const std::string YELLOW_COLOR = "\033[33m";
+const std::string GREEN_COLOR = "\033[32m";
+const std::string BLUE_COLOR = "\033[34m";
 
-    void logMessage(VerbosityLevel level, const std::string& message) {
-        if (level <= currentVerbosity) {
-            switch (level) {
-                case PEER_ERROR:
-                    std::cerr << RED_COLOR << "ERROR: " << message << RESET_COLOR << std::endl;
-                    break;
-                case PEER_WARN:
-                    std::cerr << YELLOW_COLOR << "WARN: " << message << RESET_COLOR << std::endl;
-                    break;
-                case PEER_INFO:
-                    std::cout << "INFO: " << message << std::endl;
-                    break;
-                case PEER_DEBUG:
-                    std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR << std::endl;
-                    break;
-                default:
-                    break;
-            }
+void logMessage(VerbosityLevel level, const std::string& message) {
+    if (level <= currentVerbosity) {
+        switch (level) {
+            case PEER_ERROR:
+                std::cerr << RED_COLOR << "ERROR: " << message << RESET_COLOR
+                          << std::endl;
+                break;
+            case PEER_WARN:
+                std::cerr << YELLOW_COLOR << "WARN: " << message << RESET_COLOR
+                          << std::endl;
+                break;
+            case PEER_INFO:
+                std::cout << "INFO: " << message << std::endl;
+                break;
+            case PEER_DEBUG:
+                std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR
+                          << std::endl;
+                break;
+            default:
+                break;
         }
     }
 }
-
+}  // namespace MyLogger
 
 struct PeerInfo {
     std::string node_id;
@@ -82,7 +80,7 @@ struct PeerInfo {
 };
 
 class MessengerClient {
-public:
+   public:
     MessengerClient(std::shared_ptr<Channel> channel)
         : stub_(Messenger::NewStub(channel)) {}
 
@@ -96,7 +94,8 @@ public:
         if (status.ok()) {
             return response.reply();
         } else {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "RPC failed: " + status.error_message());
+            MyLogger::logMessage(MyLogger::PEER_ERROR,
+                                 "RPC failed: " + status.error_message());
             return "RPC failed";
         }
     }
@@ -118,12 +117,12 @@ public:
         return status.ok();
     }
 
-private:
+   private:
     std::unique_ptr<Messenger::Stub> stub_;
 };
 
 class ServerImpl final {
-public:
+   public:
     ServerImpl() {
         node_id_ = generateUniqueId();
         getOwnIpAddress(own_ip_);
@@ -139,25 +138,32 @@ public:
         std::string server_address("0.0.0.0:50051");
 
         ServerBuilder builder;
-        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+        builder.AddListeningPort(server_address,
+                                 grpc::InsecureServerCredentials());
         builder.RegisterService(&service_);
 
         // Set keep-alive options
-        builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_time_ms", 60000));
-        builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_timeout_ms", 20000));
-        builder.SetOption(grpc::MakeChannelArgumentOption("grpc.keepalive_permit_without_calls", 1));
+        builder.SetOption(
+            grpc::MakeChannelArgumentOption("grpc.keepalive_time_ms", 60000));
+        builder.SetOption(grpc::MakeChannelArgumentOption(
+            "grpc.keepalive_timeout_ms", 20000));
+        builder.SetOption(grpc::MakeChannelArgumentOption(
+            "grpc.keepalive_permit_without_calls", 1));
 
         // Enable compression
-        builder.SetOption(grpc::MakeChannelArgumentOption("grpc.default_compression_algorithm", GRPC_COMPRESS_GZIP));
+        builder.SetOption(grpc::MakeChannelArgumentOption(
+            "grpc.default_compression_algorithm", GRPC_COMPRESS_GZIP));
 
         // Optimize resource usage
-        builder.SetMaxReceiveMessageSize(1024 * 1024 * 10); // 10 MB
-        builder.SetMaxSendMessageSize(1024 * 1024 * 10); // 10 MB
-        builder.SetOption(grpc::MakeChannelArgumentOption("grpc.so_reuseport", 1));
+        builder.SetMaxReceiveMessageSize(1024 * 1024 * 10);  // 10 MB
+        builder.SetMaxSendMessageSize(1024 * 1024 * 10);     // 10 MB
+        builder.SetOption(
+            grpc::MakeChannelArgumentOption("grpc.so_reuseport", 1));
 
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
-        MyLogger::logMessage(MyLogger::PEER_INFO, "Server listening on " + server_address);
+        MyLogger::logMessage(MyLogger::PEER_INFO,
+                             "Server listening on " + server_address);
 
         // Start peer discovery and management tasks
         std::thread(&ServerImpl::BroadcastPresence, this).detach();
@@ -168,7 +174,7 @@ public:
         HandleRpcs();
     }
 
-private:
+   private:
     std::string node_id_;
     char own_ip_[INET_ADDRSTRLEN];
     std::unique_ptr<ServerCompletionQueue> cq_;
@@ -190,7 +196,7 @@ private:
     }
 
     class CallData {
-    public:
+       public:
         CallData(Messenger::AsyncService* service, ServerCompletionQueue* cq)
             : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
             Proceed();
@@ -199,7 +205,8 @@ private:
         void Proceed() {
             if (status_ == CREATE) {
                 status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
+                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_,
+                                             cq_, this);
             } else if (status_ == PROCESS) {
                 new CallData(service_, cq_);
                 reply_.set_reply("Server received: " + request_.message());
@@ -211,7 +218,7 @@ private:
             }
         }
 
-    private:
+       private:
         Messenger::AsyncService* service_;
         ServerCompletionQueue* cq_;
         ServerContext ctx_;
@@ -219,7 +226,7 @@ private:
         MessageRequest request_;
         MessageResponse reply_;
         ServerAsyncResponseWriter<MessageResponse> responder_;
-        
+
         enum CallStatus { CREATE, PROCESS, FINISH };
         CallStatus status_;
     };
@@ -238,21 +245,26 @@ private:
     void BroadcastPresence() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         int broadcast = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast,
+                   sizeof(broadcast));
 
         struct sockaddr_in broadcast_addr;
         memset(&broadcast_addr, 0, sizeof(broadcast_addr));
         broadcast_addr.sin_family = AF_INET;
         broadcast_addr.sin_addr.s_addr = inet_addr("255.255.255.255");
 
-        std::string message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+        std::string message =
+            "discovery," + node_id_ + ",50051," + std::string(own_ip_);
 
         while (true) {
             for (int port = 50052; port <= 50062; ++port) {
                 broadcast_addr.sin_port = htons(port);
-                sendto(sockfd, message.c_str(), message.size(), 0, (struct sockaddr*)&broadcast_addr, sizeof(broadcast_addr));
+                sendto(sockfd, message.c_str(), message.size(), 0,
+                       (struct sockaddr*)&broadcast_addr,
+                       sizeof(broadcast_addr));
             }
-            MyLogger::logMessage(MyLogger::PEER_DEBUG, "Broadcasted message: " + message);
+            MyLogger::logMessage(MyLogger::PEER_DEBUG,
+                                 "Broadcasted message: " + message);
 
             std::this_thread::sleep_for(std::chrono::seconds(10));
         }
@@ -261,7 +273,8 @@ private:
     void ListenForPeers() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         int broadcast = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast,
+                   sizeof(broadcast));
 
         struct sockaddr_in listen_addr;
         memset(&listen_addr, 0, sizeof(listen_addr));
@@ -272,15 +285,22 @@ private:
         bool bound = false;
         for (int port = 50052; port <= 50062; ++port) {
             listen_addr.sin_port = htons(port);
-            if (bind(sockfd, (struct sockaddr*)&listen_addr, sizeof(listen_addr)) == 0) {
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Successfully bound to port " + std::to_string(port) + " for peer discovery.");
+            if (bind(sockfd, (struct sockaddr*)&listen_addr,
+                     sizeof(listen_addr)) == 0) {
+                MyLogger::logMessage(MyLogger::PEER_INFO,
+                                     "Successfully bound to port " +
+                                         std::to_string(port) +
+                                         " for peer discovery.");
                 bound = true;
                 break;
             }
         }
 
         if (!bound) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to bind socket to any port in range 50052-50062: " + std::string(strerror(errno)));
+            MyLogger::logMessage(
+                MyLogger::PEER_ERROR,
+                "Failed to bind socket to any port in range 50052-50062: " +
+                    std::string(strerror(errno)));
             close(sockfd);
             return;
         }
@@ -290,9 +310,12 @@ private:
         socklen_t addr_len = sizeof(peer_addr);
 
         while (true) {
-            int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr*)&peer_addr, &addr_len);
+            int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
+                               (struct sockaddr*)&peer_addr, &addr_len);
             if (len < 0) {
-                MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to receive: " + std::string(strerror(errno)));
+                MyLogger::logMessage(
+                    MyLogger::PEER_ERROR,
+                    "Failed to receive: " + std::string(strerror(errno)));
                 continue;
             }
             buffer[len] = '\0';
@@ -302,16 +325,21 @@ private:
             auto pos2 = message.find(',', pos1 + 1);
             auto pos3 = message.find(',', pos2 + 1);
 
-            if (pos1 != std::string::npos && pos2 != std::string::npos && pos3 != std::string::npos) {
+            if (pos1 != std::string::npos && pos2 != std::string::npos &&
+                pos3 != std::string::npos) {
                 std::string type = message.substr(0, pos1);
-                std::string received_node_id = message.substr(pos1 + 1, pos2 - pos1 - 1);
-                int grpc_port = std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
+                std::string received_node_id =
+                    message.substr(pos1 + 1, pos2 - pos1 - 1);
+                int grpc_port =
+                    std::stoi(message.substr(pos2 + 1, pos3 - pos2 - 1));
                 std::string sender_ip = message.substr(pos3 + 1);
 
                 char peer_ip[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip,
+                          INET_ADDRSTRLEN);
 
-                std::string own_message = "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+                std::string own_message =
+                    "discovery," + node_id_ + ",50051," + std::string(own_ip_);
                 if (type == "discovery" && message != own_message) {
                     AddOrUpdatePeer(received_node_id, peer_ip, grpc_port);
                 }
@@ -319,23 +347,29 @@ private:
         }
     }
 
-    void AddOrUpdatePeer(const std::string& peer_id, const std::string& peer_ip, int peer_port) {
+    void AddOrUpdatePeer(const std::string& peer_id, const std::string& peer_ip,
+                         int peer_port) {
         std::lock_guard<std::mutex> lock(peers_mutex_);
         std::string peer_address = peer_ip + ":" + std::to_string(peer_port);
-        
+
         if (peers_.find(peer_id) == peers_.end()) {
             PeerInfo new_peer;
             new_peer.node_id = peer_id;
             new_peer.ip_address = peer_ip;
             new_peer.grpc_port = peer_port;
             new_peer.last_seen = std::chrono::system_clock::now();
-            new_peer.channel = grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials());
+            new_peer.channel = grpc::CreateChannel(
+                peer_address, grpc::InsecureChannelCredentials());
             new_peer.stub = Messenger::NewStub(new_peer.channel);
             peers_[peer_id] = std::move(new_peer);
-            MyLogger::logMessage(MyLogger::PEER_INFO, "Added new peer: " + peer_id + " at " + peer_address);
+            MyLogger::logMessage(
+                MyLogger::PEER_INFO,
+                "Added new peer: " + peer_id + " at " + peer_address);
         } else {
             peers_[peer_id].last_seen = std::chrono::system_clock::now();
-            MyLogger::logMessage(MyLogger::PEER_INFO, "Updated existing peer: " + peer_id + " at " + peer_address);
+            MyLogger::logMessage(
+                MyLogger::PEER_INFO,
+                "Updated existing peer: " + peer_id + " at " + peer_address);
         }
     }
 
@@ -351,7 +385,9 @@ private:
                         it->second.last_seen = now;
                         ++it;
                     } else {
-                        MyLogger::logMessage(MyLogger::PEER_WARN, "Peer " + it->first + " is unresponsive. Removing.");
+                        MyLogger::logMessage(MyLogger::PEER_WARN,
+                                             "Peer " + it->first +
+                                                 " is unresponsive. Removing.");
                         it = peers_.erase(it);
                     }
                 } else {
@@ -369,7 +405,9 @@ private:
             for (const auto& peer : peers_) {
                 MessengerClient client(peer.second.channel);
                 if (!client.UpdateTopology(topology)) {
-                    MyLogger::logMessage(MyLogger::PEER_WARN, "Failed to update topology for peer: " + peer.first);
+                    MyLogger::logMessage(
+                        MyLogger::PEER_WARN,
+                        "Failed to update topology for peer: " + peer.first);
                 }
             }
         }
@@ -380,7 +418,8 @@ private:
         std::lock_guard<std::mutex> lock(peers_mutex_);
         ss << node_id_ << "," << own_ip_ << ",50051;";
         for (const auto& peer : peers_) {
-            ss << peer.second.node_id << "," << peer.second.ip_address << "," << peer.second.grpc_port << ";";
+            ss << peer.second.node_id << "," << peer.second.ip_address << ","
+               << peer.second.grpc_port << ";";
         }
         return ss.str();
     }
@@ -396,7 +435,9 @@ private:
         serv.sin_port = htons(kDnsPort);
 
         if (connect(sock, (const struct sockaddr*)&serv, sizeof(serv)) != 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
+            MyLogger::logMessage(
+                MyLogger::PEER_ERROR,
+                "Connect failed: " + std::string(strerror(errno)));
             strcpy(ip, "127.0.0.1");
             return;
         }
@@ -404,7 +445,9 @@ private:
         struct sockaddr_in name;
         socklen_t namelen = sizeof(name);
         if (getsockname(sock, (struct sockaddr*)&name, &namelen) != 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Connect failed: " + std::string(strerror(errno)));
+            MyLogger::logMessage(
+                MyLogger::PEER_ERROR,
+                "Connect failed: " + std::string(strerror(errno)));
             strcpy(ip, "127.0.0.1");
         } else {
             inet_ntop(AF_INET, &name.sin_addr, ip, INET_ADDRSTRLEN);
