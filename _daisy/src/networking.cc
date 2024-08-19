@@ -86,13 +86,13 @@ class MessengerClient {
 
     std::string SendMessage(const std::string& message) {
         MessageRequest request;
-        request.set_message(message);
+        request.set_message("Processing: " + message);
         MessageResponse response;
         ClientContext context;
         Status status = stub_->SendMessage(&context, request, &response);
 
         if (status.ok()) {
-            return response.reply();
+            return "response.reply();";
         } else {
             MyLogger::logMessage(MyLogger::PEER_ERROR,
                                  "RPC failed: " + status.error_message());
@@ -113,6 +113,7 @@ class MessengerClient {
         request.set_topology(topology);
         TopologyUpdateResponse response;
         ClientContext context;
+        MyLogger::logMessage(MyLogger::PEER_DEBUG, "topology: " + topology);
         Status status = stub_->UpdateTopology(&context, request, &response);
         return status.ok();
     }
@@ -232,9 +233,45 @@ class ServerImpl final {
         CallStatus status_;
     };
 
+    class MessageCallData : public BaseCallData {
+    public:
+        MessageCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+            Proceed();
+        }
+
+        void Proceed() override {
+            if (status_ == CREATE) {
+                status_ = PROCESS;
+                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
+            } else if (status_ == PROCESS) {
+                response_.set_message(request_.message());
+                new MessageCallData(service_, cq_);
+                status_ = FINISH;
+                responder_.Finish(response_, Status::OK, this);
+            } else {
+                GPR_ASSERT(status_ == FINISH);
+                delete this;
+            }
+        }
+
+    private:
+        Messenger::AsyncService *service_;
+        ServerCompletionQueue *cq_;
+        ServerContext ctx_;
+
+        MessageRequest request_;
+        MessageResponse response_;
+        ServerAsyncResponseWriter<MessageResponse> responder_;
+
+        enum CallStatus { CREATE, PROCESS, FINISH };
+        CallStatus status_;
+    };
+
+
     void HandleRpcs() {
-        new HeartbeatCallData(&service_,
-                              cq_.get());  // For handling Heartbeat RPC
+        new HeartbeatCallData(&service_, cq_.get());  // For handling Heartbeat RPC
+        new MessageCallData(&service_, cq_.get());  // For handling Message RPC
 
         void *tag;
         bool ok;

@@ -22,7 +22,7 @@ message MessageRequest {
 }
 
 message MessageResponse {
-    string reply = 1;
+    string message = 1;
 }
 
 message TopologyUpdateRequest {
