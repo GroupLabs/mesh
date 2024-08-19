@@ -46,6 +46,7 @@ class ServerImpl final {
         Proceed() = 0;  // Pure virtual function, making this an abstract class
         virtual ~BaseCallData() {}  // Virtual destructor
     };
+    
     class HeartbeatCallData : public BaseCallData {
        public:
         HeartbeatCallData(HeartbeatService::AsyncService *service,

@@ -1,24 +1,34 @@
 syntax = "proto3";
 
-package heartbeat;
+package messaging;
 
-service HeartbeatService {
-  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
-  rpc AnotherMethod (AnotherRequest) returns (AnotherResponse) {}
+service Messenger {
+    rpc SendMessage(MessageRequest) returns (MessageResponse);
+
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+    rpc UpdateTopology(TopologyUpdateRequest) returns (TopologyUpdateResponse);
 }
 
 message HeartbeatRequest {
-  string client_id = 1;
 }
 
 message HeartbeatResponse {
-  string status = 1;
+    bool success = 1;
 }
 
-message AnotherRequest {
-  string data = 1;
+message MessageRequest {
+    string message = 1;
 }
 
-message AnotherResponse {
-  string result = 1;
+message MessageResponse {
+    string reply = 1;
+}
+
+message TopologyUpdateRequest {
+    string topology = 1;
+}
+
+message TopologyUpdateResponse {
+    bool success = 1;
 }

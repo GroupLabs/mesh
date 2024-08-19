@@ -15,7 +15,7 @@
 #include <string>
 #include <thread>
 
-#include "proto/networking.grpc.pb.h"
+#include "proto/messaging.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -175,14 +175,6 @@ class ServerImpl final {
     }
 
    private:
-    std::string node_id_;
-    char own_ip_[INET_ADDRSTRLEN];
-    std::unique_ptr<ServerCompletionQueue> cq_;
-    Messenger::AsyncService service_;
-    std::unique_ptr<Server> server_;
-    std::map<std::string, PeerInfo> peers_;
-    std::mutex peers_mutex_;
-
     std::string generateUniqueId() {
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -195,23 +187,32 @@ class ServerImpl final {
         return ss.str();
     }
 
-    class CallData {
+    class BaseCallData {
        public:
-        CallData(Messenger::AsyncService* service, ServerCompletionQueue* cq)
+        virtual void
+        Proceed() = 0;  // Pure virtual function, making this an abstract class
+        virtual ~BaseCallData() {}  // Virtual destructor
+    };
+    
+    class HeartbeatCallData : public BaseCallData {
+       public:
+        HeartbeatCallData(Messenger::AsyncService *service,
+                          ServerCompletionQueue *cq)
             : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
             Proceed();
         }
 
-        void Proceed() {
+        void Proceed() override {
             if (status_ == CREATE) {
                 status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_,
-                                             cq_, this);
+                service_->RequestHeartbeat(&ctx_, &request_, &responder_, cq_,
+                                           cq_, this);
             } else if (status_ == PROCESS) {
-                new CallData(service_, cq_);
-                reply_.set_reply("Server received: " + request_.message());
+                new HeartbeatCallData(service_, cq_);
+
+                response_.set_success(true);
                 status_ = FINISH;
-                responder_.Finish(reply_, Status::OK, this);
+                responder_.Finish(response_, Status::OK, this);
             } else {
                 GPR_ASSERT(status_ == FINISH);
                 delete this;
@@ -219,26 +220,30 @@ class ServerImpl final {
         }
 
        private:
-        Messenger::AsyncService* service_;
-        ServerCompletionQueue* cq_;
+        Messenger::AsyncService *service_;
+        ServerCompletionQueue *cq_;
         ServerContext ctx_;
 
-        MessageRequest request_;
-        MessageResponse reply_;
-        ServerAsyncResponseWriter<MessageResponse> responder_;
+        HeartbeatRequest request_;
+        HeartbeatResponse response_;
+        ServerAsyncResponseWriter<HeartbeatResponse> responder_;
 
         enum CallStatus { CREATE, PROCESS, FINISH };
         CallStatus status_;
     };
 
     void HandleRpcs() {
-        new CallData(&service_, cq_.get());
-        void* tag;
+        new HeartbeatCallData(&service_,
+                              cq_.get());  // For handling Heartbeat RPC
+
+        void *tag;
         bool ok;
         while (true) {
             GPR_ASSERT(cq_->Next(&tag, &ok));
             GPR_ASSERT(ok);
-            static_cast<CallData*>(tag)->Proceed();
+
+            BaseCallData *call_data = static_cast<BaseCallData *>(tag);
+            call_data->Proceed();
         }
     }
 
@@ -455,6 +460,14 @@ class ServerImpl final {
 
         close(sock);
     }
+
+    std::string node_id_;
+    char own_ip_[INET_ADDRSTRLEN];
+    std::unique_ptr<ServerCompletionQueue> cq_;
+    Messenger::AsyncService service_;
+    std::unique_ptr<Server> server_;
+    std::map<std::string, PeerInfo> peers_;
+    std::mutex peers_mutex_;
 };
 
 int main(int argc, char** argv) {

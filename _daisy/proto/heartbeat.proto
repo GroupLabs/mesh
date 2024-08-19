@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package heartbeat;
+
+service HeartbeatService {
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+  rpc AnotherMethod (AnotherRequest) returns (AnotherResponse) {}
+}
+
+message HeartbeatRequest {
+  string client_id = 1;
+}
+
+message HeartbeatResponse {
+  string status = 1;
+}
+
+message AnotherRequest {
+  string data = 1;
+}
+
+message AnotherResponse {
+  string result = 1;
+}
