@@ -4,6 +4,7 @@ package heartbeat;
 
 service HeartbeatService {
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+  rpc AnotherMethod (AnotherRequest) returns (AnotherResponse) {}
 }
 
 message HeartbeatRequest {
@@ -12,4 +13,12 @@ message HeartbeatRequest {
 
 message HeartbeatResponse {
   string status = 1;
+}
+
+message AnotherRequest {
+  string data = 1;
+}
+
+message AnotherResponse {
+  string result = 1;
 }
