@@ -113,7 +113,7 @@ class MessengerClient {
         request.set_topology(topology);
         TopologyUpdateResponse response;
         ClientContext context;
-        MyLogger::logMessage(MyLogger::PEER_DEBUG, "topology: " + topology);
+        MyLogger::logMessage(MyLogger::PEER_DEBUG, "Topology: " + topology);
         Status status = stub_->UpdateTopology(&context, request, &response);
         return status.ok();
     }
