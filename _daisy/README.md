@@ -18,7 +18,12 @@ _daisy is the name of the project built for distributed inference. This will lat
 
 `bazel run --enable_bzlmod=false //:tests`
 
-5. Clean with:
+5. Run an inference with:
+
+`bazel build --enable_bzlmod=false //:inference`
+`bazel-bin/inference <path/to/model>/<model_name>.pt`
+
+6. Clean with:
 
 `bazel clean --expunge `
 
@@ -28,4 +33,3 @@ _daisy is the name of the project built for distributed inference. This will lat
 Generate the gRPC code:
 protoc -I=proto --cpp_out=src proto/messaging.proto
 protoc -I=proto --grpc_out=src --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) proto/messaging.proto -->
-

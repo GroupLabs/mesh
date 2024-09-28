@@ -40,8 +40,8 @@ cc_binary(
 
 
 cc_binary(
-    name = "tests",
-    srcs = ["tests/torch.cc"],
+    name = "inference",
+    srcs = ["src/inference.cc"],
     deps = [
         "@libtorch//:libtorch",
     ],
