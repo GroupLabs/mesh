@@ -19,17 +19,6 @@ cc_grpc_library(
 )
 
 cc_binary(
-    name = "main",
-    srcs = ["src/main.cc"],
-    deps = [
-        "@com_github_grpc_grpc//:grpc++",
-        ":messaging_cc_grpc",
-    ],
-)
-
-
-
-cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
@@ -37,7 +26,6 @@ cc_binary(
         ":messaging_cc_grpc",
     ],
 )
-
 
 cc_binary(
     name = "inference",
