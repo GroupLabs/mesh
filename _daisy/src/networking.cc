@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <uuid/uuid.h>
 
 #include "proto/messaging.grpc.pb.h"
 
@@ -131,8 +132,20 @@ class ServerImpl final {
     }
 
     ~ServerImpl() {
-        server_->Shutdown();
-        cq_->Shutdown();
+        if (server_) {
+            server_->Shutdown();
+            void* tag;
+            bool ok;
+            while (cq_->Next(&tag, &ok)) {
+                BaseCallData* call_data = static_cast<BaseCallData*>(tag);
+                if (ok) {
+                    call_data->Proceed();
+                } else {
+                    delete call_data;
+                }
+            }
+            cq_->Shutdown();
+        }
     }
 
     void Run() {
@@ -177,15 +190,11 @@ class ServerImpl final {
 
    private:
     std::string generateUniqueId() {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 15);
-        std::stringstream ss;
-        ss << std::hex << std::setfill('0');
-        for (int i = 0; i < 8; ++i) {
-            ss << std::setw(2) << dis(gen);
-        }
-        return ss.str();
+        uuid_t uuid;
+        uuid_generate_random(uuid);
+        char uuid_str[37];
+        uuid_unparse(uuid, uuid_str);
+        return std::string(uuid_str);
     }
 
     class BaseCallData {
@@ -288,9 +297,17 @@ class ServerImpl final {
 
     void BroadcastPresence() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sockfd < 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
+            return;
+        }
+
         int broadcast = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast,
-                   sizeof(broadcast));
+        if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
+            close(sockfd);
+            return;
+        }
 
         struct sockaddr_in broadcast_addr;
         memset(&broadcast_addr, 0, sizeof(broadcast_addr));
@@ -303,9 +320,11 @@ class ServerImpl final {
         while (true) {
             for (int port = 50052; port <= 50062; ++port) {
                 broadcast_addr.sin_port = htons(port);
-                sendto(sockfd, message.c_str(), message.size(), 0,
-                       (struct sockaddr *)&broadcast_addr,
-                       sizeof(broadcast_addr));
+                if (sendto(sockfd, message.c_str(), message.size(), 0,
+                           (struct sockaddr *)&broadcast_addr,
+                           sizeof(broadcast_addr)) < 0) {
+                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to broadcast message: " + std::string(strerror(errno)));
+                }
             }
             MyLogger::logMessage(MyLogger::PEER_DEBUG,
                                  "Broadcasted message: " + message);
@@ -316,9 +335,17 @@ class ServerImpl final {
 
     void ListenForPeers() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sockfd < 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
+            return;
+        }
+
         int broadcast = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast,
-                   sizeof(broadcast));
+        if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
+            close(sockfd);
+            return;
+        }
 
         struct sockaddr_in listen_addr;
         memset(&listen_addr, 0, sizeof(listen_addr));
@@ -382,8 +409,7 @@ class ServerImpl final {
                 inet_ntop(AF_INET, &(peer_addr.sin_addr), peer_ip,
                           INET_ADDRSTRLEN);
 
-                std::string own_message =
-                    "discovery," + node_id_ + ",50051," + std::string(own_ip_);
+                std::string own_message = "discovery," + node_id_ + ",50051," + own_ip_;
                 if (type == "discovery" && message != own_message) {
                     AddOrUpdatePeer(received_node_id, peer_ip, grpc_port);
                 }
