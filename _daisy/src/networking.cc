@@ -114,9 +114,15 @@ class MessengerClient {
         request.set_topology(topology);
         TopologyUpdateResponse response;
         ClientContext context;
-        MyLogger::logMessage(MyLogger::PEER_DEBUG, "Topology: " + topology);
+        auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(8000);  // 2 seconds timeout
+        context.set_deadline(deadline);
+        MyLogger::logMessage(MyLogger::PEER_DEBUG, "Attempting to update topology: " + topology);
         Status status = stub_->UpdateTopology(&context, request, &response);
-        return status.ok();
+        if (!status.ok()) {
+            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to update topology. Error code: " + std::to_string(status.error_code()) + ", Message: " + status.error_message());
+            return false;
+        }
+        return true;
     }
 
    private:
@@ -474,10 +480,13 @@ class ServerImpl final {
             std::lock_guard<std::mutex> lock(peers_mutex_);
             for (const auto &peer : peers_) {
                 MessengerClient client(peer.second.channel);
+                // Check connectivity before updating topology
+                if (!client.Heartbeat()) {
+                    MyLogger::logMessage(MyLogger::PEER_WARN, "Peer " + peer.first + " is unresponsive. Skipping topology update.");
+                    continue;
+                }
                 if (!client.UpdateTopology(topology)) {
-                    MyLogger::logMessage(
-                        MyLogger::PEER_WARN,
-                        "Failed to update topology for peer: " + peer.first);
+                    MyLogger::logMessage(MyLogger::PEER_WARN, "Failed to update topology for peer: " + peer.first);
                 }
             }
         }
