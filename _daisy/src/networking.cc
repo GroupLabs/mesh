@@ -285,10 +285,47 @@ class ServerImpl final {
         CallStatus status_;
     };
 
+    class TopologyUpdateCallData : public BaseCallData {
+       public:
+        TopologyUpdateCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+            Proceed();
+        }
+
+        void Proceed() override {
+            if (status_ == CREATE) {
+                status_ = PROCESS;
+                service_->RequestUpdateTopology(&ctx_, &request_, &responder_, cq_, cq_, this);
+            } else if (status_ == PROCESS) {
+                new TopologyUpdateCallData(service_, cq_);
+
+                // Process the topology update request
+                response_.set_success(true);
+                status_ = FINISH;
+                responder_.Finish(response_, Status::OK, this);
+            } else {
+                GPR_ASSERT(status_ == FINISH);
+                delete this;
+            }
+        }
+
+       private:
+        Messenger::AsyncService *service_;
+        ServerCompletionQueue *cq_;
+        ServerContext ctx_;
+
+        TopologyUpdateRequest request_;
+        TopologyUpdateResponse response_;
+        ServerAsyncResponseWriter<TopologyUpdateResponse> responder_;
+
+        enum CallStatus { CREATE, PROCESS, FINISH };
+        CallStatus status_;
+    };
+
     void HandleRpcs() {
-        new HeartbeatCallData(&service_,
-                              cq_.get());  // For handling Heartbeat RPC
-        new MessageCallData(&service_, cq_.get());  // For handling Message RPC
+        new HeartbeatCallData(&service_, cq_.get());      // For handling Heartbeat RPC
+        new MessageCallData(&service_, cq_.get());        // For handling Message RPC
+        new TopologyUpdateCallData(&service_, cq_.get()); // For handling Topology Update RPC
 
         void *tag;
         bool ok;
@@ -485,8 +522,17 @@ class ServerImpl final {
                     MyLogger::logMessage(MyLogger::PEER_WARN, "Peer " + peer.first + " is unresponsive. Skipping topology update.");
                     continue;
                 }
-                if (!client.UpdateTopology(topology)) {
-                    MyLogger::logMessage(MyLogger::PEER_WARN, "Failed to update topology for peer: " + peer.first);
+                int retries = 3;
+                while (retries > 0) {
+                    if (client.UpdateTopology(topology)) {
+                        break;
+                    }
+                    MyLogger::logMessage(MyLogger::PEER_WARN, "Retrying topology update for peer: " + peer.first);
+                    retries--;
+                    std::this_thread::sleep_for(std::chrono::seconds(2));  // Backoff before retrying
+                }
+                if (retries == 0) {
+                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to update topology for peer: " + peer.first);
                 }
             }
         }
