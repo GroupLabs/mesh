@@ -6,13 +6,13 @@ _daisy is the name of the project built for distributed inference. This will lat
 
 2. Build with:
 
-`bazel build --enable_bzlmod=false //:main`
+`bazel build --enable_bzlmod=false //:networking`
 
 3. Run with:
 
-`bazel-bin/main`
+`bazel-bin/networking`
 
-`bazel run --enable_bzlmod=false //:main`
+`bazel run --enable_bzlmod=false //:networking`
 
 4. Test with:
 
