@@ -19,10 +19,21 @@ cc_grpc_library(
 )
 
 cc_binary(
-    name = "main",
-    srcs = ["src/main.cc"],
+    name = "networking",
+    srcs = ["src/networking.cc"],
     deps = [
         "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",
+    ],
+)
+
+cc_binary(
+    name = "inference",
+    srcs = ["src/inference.cc"],
+    deps = [
+        "@libtorch//:libtorch",
+    ],
+    copts = ["-std=c++17"],
+    linkopts = [
     ],
 )

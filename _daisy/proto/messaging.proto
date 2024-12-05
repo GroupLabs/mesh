@@ -1,17 +1,34 @@
-// proto/messaging.proto
-
 syntax = "proto3";
 
 package messaging;
 
 service Messenger {
-  rpc SendMessage (MessageRequest) returns (MessageResponse);
+    rpc SendMessage(MessageRequest) returns (MessageResponse);
+
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+    rpc UpdateTopology(TopologyUpdateRequest) returns (TopologyUpdateResponse);
+}
+
+message HeartbeatRequest {
+}
+
+message HeartbeatResponse {
+    bool success = 1;
 }
 
 message MessageRequest {
-  string message = 1;
+    string message = 1;
 }
 
 message MessageResponse {
-  string reply = 1;
+    string message = 1;
+}
+
+message TopologyUpdateRequest {
+    string topology = 1;
+}
+
+message TopologyUpdateResponse {
+    bool success = 1;
 }
