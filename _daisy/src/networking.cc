@@ -5,14 +5,8 @@
 #include <unistd.h>
 
 #include <chrono>
-#include <iomanip>
 #include <iostream>
-#include <map>
-#include <memory>
 #include <mutex>
-#include <random>
-#include <sstream>
-#include <string>
 #include <thread>
 #include <uuid/uuid.h>
 
@@ -114,7 +108,7 @@ class MessengerClient {
         request.set_topology(topology);
         TopologyUpdateResponse response;
         ClientContext context;
-        auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(8000);  // 2 seconds timeout
+        auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(8000);
         context.set_deadline(deadline);
         MyLogger::logMessage(MyLogger::PEER_DEBUG, "Attempting to update topology: " + topology);
         Status status = stub_->UpdateTopology(&context, request, &response);
