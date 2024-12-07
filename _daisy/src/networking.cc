@@ -243,38 +243,39 @@ class ServerImpl final {
     };
 
     class MessageCallData : public BaseCallData {
-       public:
-        MessageCallData(Messenger::AsyncService *service,
-                        ServerCompletionQueue *cq)
-            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+    public:
+        MessageCallData(Messenger::AsyncService* service, grpc::ServerCompletionQueue* cq, ServerImpl* server)
+            : service_(service), cq_(cq), server_(server), responder_(&ctx_), status_(CREATE) {
             Proceed();
         }
 
         void Proceed() override {
             if (status_ == CREATE) {
                 status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_,
-                                             cq_, this);
+                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
             } else if (status_ == PROCESS) {
-                response_.set_message(request_.message());
-                new MessageCallData(service_, cq_);
+                new MessageCallData(service_, cq_, server_);  // Create new handler
+
+                // Use the server reference to get the topology
+                std::string topology = server_->GetNetworkTopology();
+
+                response_.set_message(topology);
                 status_ = FINISH;
-                responder_.Finish(response_, Status::OK, this);
+                responder_.Finish(response_, grpc::Status::OK, this);
             } else {
                 GPR_ASSERT(status_ == FINISH);
                 delete this;
             }
         }
 
-       private:
-        Messenger::AsyncService *service_;
-        ServerCompletionQueue *cq_;
-        ServerContext ctx_;
-
-        MessageRequest request_;
-        MessageResponse response_;
-        ServerAsyncResponseWriter<MessageResponse> responder_;
-
+    private:
+        Messenger::AsyncService* service_;
+        grpc::ServerCompletionQueue* cq_;
+        ServerImpl* server_;  // Pointer to the server for accessing topology
+        grpc::ServerContext ctx_;
+        messaging::MessageRequest request_;
+        messaging::MessageResponse response_;
+        grpc::ServerAsyncResponseWriter<messaging::MessageResponse> responder_;
         enum CallStatus { CREATE, PROCESS, FINISH };
         CallStatus status_;
     };
@@ -318,7 +319,7 @@ class ServerImpl final {
 
     void HandleRpcs() {
         new HeartbeatCallData(&service_, cq_.get());      // For handling Heartbeat RPC
-        new MessageCallData(&service_, cq_.get());        // For handling Message RPC
+        new MessageCallData(&service_, cq_.get(), this);        // For handling Message RPC
         new TopologyUpdateCallData(&service_, cq_.get()); // For handling Topology Update RPC
 
         void *tag;

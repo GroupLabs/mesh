@@ -1,10 +1,4 @@
-We need to pass
+Can we give Mesh better network control?
 
-1. Data
-2. Instructions
-
-to nodes.
-
-How does FSDp, ZerO, etc work?
-
-We can pass data as libtorch tensors, and instructions as torchscript.
+- Report node's understanding of topology to clients
+- Sync nodes' understanding of topology
