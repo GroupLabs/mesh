@@ -1,0 +1,14 @@
+namespace myservice;
+
+table FileChunk {
+  data:[ubyte];  // model file bytes
+}
+
+table TensorChunk {
+  data:[float];  // tensor data
+}
+
+table InputData {
+  file:FileChunk;
+  tensor:TensorChunk;
+}

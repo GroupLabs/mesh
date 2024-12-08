@@ -14,8 +14,10 @@ http_archive(
     ],
     strip_prefix = "grpc-b8a04acbbf18fd1c805e5d53d62ed9fa4721a4d1",
 )
+
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 grpc_deps()
+
 load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
 grpc_extra_deps()
 
@@ -61,4 +63,15 @@ cc_library(
     ],
 )
 """
+)
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# Add precompiled flatc
+new_local_repository(
+    name = "flatc_prebuilt",
+    path = ".",  # Replace with the directory containing the flatc binary
+    build_file_content = """
+exports_files(["flatc"])
+    """,
 )

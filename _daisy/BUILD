@@ -1,6 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
+# Proto configuration
 proto_library(
     name = "messaging_proto",
     srcs = ["proto/messaging.proto"],
@@ -18,22 +19,42 @@ cc_grpc_library(
     deps = [":messaging_cc_proto"],
 )
 
+genrule(
+    name = "model_and_tensor_flatbuffers",
+    srcs = ["flatbuffers/model_and_tensor.fbs"],
+    outs = ["model_and_tensor_generated.h"],
+    cmd = "$(location @flatc_prebuilt//:flatc) " +
+          "--cpp --gen-object-api --no-includes -o $(RULEDIR) $(location flatbuffers/model_and_tensor.fbs)",
+    tools = ["@flatc_prebuilt//:flatc"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "model_and_tensor_lib",
+    srcs = ["model_and_tensor_generated.h"],
+    hdrs = ["model_and_tensor_generated.h"],
+    visibility = ["//visibility:public"],
+)
+
+# Networking binary
 cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
         "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",
+        ":model_and_tensor_lib",  # Include FlatBuffer-generated library
     ],
 )
 
+# Inference binary
 cc_binary(
     name = "inference",
     srcs = ["src/inference.cc"],
     deps = [
         "@libtorch//:libtorch",
+        "@com_github_google_flatbuffers//:flatbuffers",
     ],
     copts = ["-std=c++17"],
-    linkopts = [
-    ],
+    linkopts = [],
 )
