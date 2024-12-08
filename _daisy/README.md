@@ -2,6 +2,8 @@ _daisy is the name of the project built for distributed inference. This will lat
 
 > Note: This is a work in progress!
 
+0. Download a flatc binary from `https://github.com/google/flatbuffers/releases/` and place it in the `_daisy` directory.
+
 1. Install Bazel
 
 2. Build with:
