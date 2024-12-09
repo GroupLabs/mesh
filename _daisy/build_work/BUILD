@@ -1,5 +1,5 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
 # Proto configuration
 proto_library(
@@ -40,7 +40,7 @@ cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
-        "@com_github_grpc_grpc//:grpc++",
+        "@grpc//:grpc++",
         ":messaging_cc_grpc",
         ":model_and_tensor_lib",  # Include FlatBuffer-generated library
     ],
@@ -52,7 +52,7 @@ cc_binary(
     srcs = ["src/inference.cc"],
     deps = [
         "@libtorch//:libtorch",
-        "@com_github_google_flatbuffers//:flatbuffers",
+        "@flatbuffers//:flatbuffers",
     ],
     copts = ["-std=c++17"],
     linkopts = [],
