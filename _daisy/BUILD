@@ -23,8 +23,7 @@ genrule(
     name = "model_and_tensor_flatbuffers",
     srcs = ["flatbuffers/model_and_tensor.fbs"],
     outs = ["model_and_tensor_generated.h"],
-    cmd = "$(location @flatc_prebuilt//:flatc) " +
-          "--cpp --gen-object-api --no-includes -o $(RULEDIR) $(location flatbuffers/model_and_tensor.fbs)",
+    cmd = "$(location @flatc_prebuilt//:flatc) --cpp --gen-object-api --no-includes -o $(RULEDIR) $(location flatbuffers/model_and_tensor.fbs)",
     tools = ["@flatc_prebuilt//:flatc"],
     visibility = ["//visibility:public"],
 )
