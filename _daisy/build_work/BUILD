@@ -1,7 +1,5 @@
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
-# Proto configuration
 proto_library(
     name = "messaging_proto",
     srcs = ["proto/messaging.proto"],
@@ -35,25 +33,16 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-# Networking binary
 cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
-        "@grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++",  # adjust target name if needed
         ":messaging_cc_grpc",
-        ":model_and_tensor_lib",  # Include FlatBuffer-generated library
-    ],
-)
-
-# Inference binary
-cc_binary(
-    name = "inference",
-    srcs = ["src/inference.cc"],
-    deps = [
+        ":model_and_tensor_lib",
         "@libtorch//:libtorch",
-        "@flatbuffers//:flatbuffers",
+        "@protobuf//:protobuf",
+        "@zlib//:zlib",
     ],
     copts = ["-std=c++17"],
-    linkopts = [],
 )
