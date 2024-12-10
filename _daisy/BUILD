@@ -1,3 +1,4 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 
 proto_library(
@@ -37,12 +38,19 @@ cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
-        "@com_github_grpc_grpc//:grpc++",  # adjust target name if needed
+        "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",
         ":model_and_tensor_lib",
+    ],
+)
+
+cc_binary(
+    name = "inference",
+    srcs = ["src/inference.cc"],
+    deps = [
         "@libtorch//:libtorch",
-        "@protobuf//:protobuf",
-        "@zlib//:zlib",
     ],
     copts = ["-std=c++17"],
+    linkopts = [
+    ],
 )
