@@ -1,5 +1,0 @@
-bazel_dep(name = "flatbuffers", version = "24.3.7")
-bazel_dep(name = "protobuf", version = "29.1")
-bazel_dep(name = "grpc", version = "1.66.0")
-
-// Not yet supported!
