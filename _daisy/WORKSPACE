@@ -65,6 +65,21 @@ cc_library(
 """
 )
 
+# flatbuffers headers
+http_archive(
+    name = "flatbuffers",
+    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v24.3.25.zip"],
+    strip_prefix = "flatbuffers-24.3.25",
+    build_file_content = """
+cc_library(
+    name = "flatbuffers_lib",
+    hdrs = glob(["include/flatbuffers/*.h"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+    """,
+)
+
 # Add precompiled flatc binary
 http_archive(
     name = "flatc_prebuilt",

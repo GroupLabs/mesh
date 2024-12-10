@@ -31,6 +31,7 @@ cc_library(
     name = "model_and_tensor_lib",
     srcs = ["model_and_tensor_generated.h"],
     hdrs = ["model_and_tensor_generated.h"],
+    deps = ["@flatbuffers//:flatbuffers_lib"],
     visibility = ["//visibility:public"],
 )
 
