@@ -1,14 +1,40 @@
 namespace myservice;
 
+/// A simple chunk of raw file data (e.g., part of a `.pt` model file).
 table FileChunk {
-  data:[ubyte];  // model file bytes
+  data:[ubyte]; // A vector of bytes representing a portion of the file.
 }
 
+/// A chunk of tensor data. For example, this could represent input data
+/// for a machine learning model.
 table TensorChunk {
-  data:[float];  // tensor data
+  data:[float]; // A vector of floats representing tensor elements.
 }
 
+/// InputData contains either a file chunk, a tensor chunk, or both.
+/// Fields that aren't present default to null, making them optional.
 table InputData {
-  file:FileChunk;
-  tensor:TensorChunk;
+  file:FileChunk;   // Optional file data chunk.
+  tensor:TensorChunk; // Optional tensor data chunk.
 }
+
+/// Response message indicating the status after receiving and processing
+/// the streamed input data. You can add more fields if needed, for example:
+/// - processed byte count
+/// - validation errors
+/// - model loading status
+table ReceiveModelAndTensorResponse {
+  status:string; // A simple status message, e.g. "Success" or "Error details".
+}
+
+/// Define a gRPC service using FlatBuffers. Here, we have a client-streaming
+/// RPC (`(stream InputData)`) that sends multiple InputData messages from
+/// the client, and the server returns a single ReceiveModelAndTensorResponse
+/// once the stream ends.
+rpc_service ModelService {
+  ReceiveModelAndTensor (InputData) : ReceiveModelAndTensorResponse (streaming: "client");
+}
+
+/// Optional: If you want to identify files with this schema, you can provide a file_identifier.
+/// This adds a 4-byte identifier into the buffer, useful if you store these FlatBuffers as files.
+file_identifier "MODL";
