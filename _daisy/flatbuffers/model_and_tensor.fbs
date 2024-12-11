@@ -1,8 +1,7 @@
 namespace myservice;
 
-/// A simple chunk of raw file data (e.g., part of a `.pt` model file).
 table FileChunk {
-  data:[ubyte]; // A vector of bytes representing a portion of the file.
+  data:[ubyte];
 }
 
 /// A chunk of tensor data. For example, this could represent input data
@@ -14,7 +13,7 @@ table TensorChunk {
 /// InputData contains either a file chunk, a tensor chunk, or both.
 /// Fields that aren't present default to null, making them optional.
 table InputData {
-  file:FileChunk;   // Optional file data chunk.
+  file:FileChunk;    // Optional file data chunk.
   tensor:TensorChunk; // Optional tensor data chunk.
 }
 
@@ -38,3 +37,6 @@ rpc_service ModelService {
 /// Optional: If you want to identify files with this schema, you can provide a file_identifier.
 /// This adds a 4-byte identifier into the buffer, useful if you store these FlatBuffers as files.
 file_identifier "MODL";
+
+/// Specify the root type for the schema.
+root_type InputData;

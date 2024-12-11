@@ -1,5 +1,8 @@
+# WORKSPACE
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+# Protobuf
 http_archive(
     name = "protobuf",
     sha256 = "c29d8b4b79389463c546f98b15aa4391d4ed7ec459340c47bffe15db63eb9126",
@@ -7,6 +10,7 @@ http_archive(
     urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.21.3.tar.gz"],
 )
 
+# gRPC
 http_archive(
     name = "com_github_grpc_grpc",
     urls = [
@@ -21,12 +25,14 @@ grpc_deps()
 load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
 grpc_extra_deps()
 
+# C++ Rules
 http_archive(
     name = "rules_cc",
     urls = ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.17/rules_cc-0.0.17.tar.gz"],
     sha256 = "4dccbfd22c0def164c8f47458bd50e0c7148f3d92002cdb459c2a96a68498241",
 )
 
+# LibTorch
 http_archive(
     name = "libtorch",
     urls = ["https://download.pytorch.org/libtorch/cpu/libtorch-macos-arm64-2.4.0.zip"],
@@ -62,10 +68,10 @@ cc_library(
         "-std=c++17",
     ],
 )
-"""
+""",
 )
 
-# flatbuffers headers
+# FlatBuffers
 http_archive(
     name = "flatbuffers",
     urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v24.3.25.zip"],
@@ -73,19 +79,19 @@ http_archive(
     build_file_content = """
 cc_library(
     name = "flatbuffers_lib",
-    hdrs = glob(["include/flatbuffers/*.h"]),
+    hdrs = glob(["include/flatbuffers/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],
 )
-    """,
+""",
 )
 
-# Add precompiled flatc binary
+# Precompiled flatc binary
 http_archive(
     name = "flatc_prebuilt",
     urls = ["https://github.com/google/flatbuffers/releases/download/v24.3.25/Mac.flatc.binary.zip"],
     strip_prefix = "",
     build_file_content = """
 exports_files(["flatc"])
-    """,
+""",
 )
