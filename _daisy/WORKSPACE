@@ -17,6 +17,7 @@ http_archive(
         "https://github.com/grpc/grpc/archive/b8a04acbbf18fd1c805e5d53d62ed9fa4721a4d1.tar.gz",
     ],
     strip_prefix = "grpc-b8a04acbbf18fd1c805e5d53d62ed9fa4721a4d1",
+    integrity = "sha256-kawBH0HrDWR8cQTF7/ZmaLUUpnNbpETui8TinPXeMYk=",
 )
 
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
@@ -75,6 +76,7 @@ cc_library(
 http_archive(
     name = "flatbuffers",
     urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v24.3.25.zip"],
+    integrity="sha256-5wb162yo944je/P37M/6HF7JqW08HJOPCNwJqrGIRSg=",
     strip_prefix = "flatbuffers-24.3.25",
     build_file_content = """
 cc_library(
@@ -91,6 +93,7 @@ http_archive(
     name = "flatc_prebuilt",
     urls = ["https://github.com/google/flatbuffers/releases/download/v24.3.25/Mac.flatc.binary.zip"],
     strip_prefix = "",
+    integrity = "sha256-J3J09OEDfbtXsblXGXIf49WMhpg9Y0EDKErYwdnPGd0=",
     build_file_content = """
 exports_files(["flatc"])
 """,
