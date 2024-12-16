@@ -66,6 +66,18 @@ cc_binary(
     copts = ["-std=c++14"],
 )
 
+# test flatbuffers test
+cc_binary(
+    name = "test-fbs",
+    srcs = ["tests/client.cc"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        ":messaging_cc_grpc",
+        ":model_and_tensor_lib",
+    ],
+    copts = ["-std=c++14"],
+)
+
 # Inference Binary
 cc_binary(
     name = "inference",

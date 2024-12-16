@@ -33,14 +33,14 @@ using messaging::TopologyUpdateRequest;
 using messaging::TopologyUpdateResponse;
 
 namespace MyLogger {
-enum VerbosityLevel { NONE, PEER_ERROR, PEER_WARN, PEER_INFO, PEER_DEBUG };
+enum VerbosityLevel { NONE, PEER_ERROR, PEER_WARN, PEER_INFO, PEER_DEBUG, PEER_DEBUG2 };
 
-VerbosityLevel currentVerbosity = PEER_DEBUG;
+VerbosityLevel currentVerbosity = PEER_DEBUG2;
 
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR = "\033[31m";
 const std::string YELLOW_COLOR = "\033[33m";
-const std::string GREEN_COLOR = "\033[32m";
+const std::string PURPLE_COLOR = "\033[35m";
 const std::string BLUE_COLOR = "\033[34m";
 
 void logMessage(VerbosityLevel level, const std::string &message) {
@@ -60,6 +60,10 @@ void logMessage(VerbosityLevel level, const std::string &message) {
             case PEER_DEBUG:
                 std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR
                           << std::endl;
+                break;
+            case PEER_DEBUG2:
+                std::cout << PURPLE_COLOR << "DEBUG2: " << message << RESET_COLOR
+                            << std::endl;
                 break;
             default:
                 break;
@@ -142,7 +146,7 @@ class ServerImpl final {
             while (cq_->Next(&tag, &ok)) {
                 BaseCallData* call_data = static_cast<BaseCallData*>(tag);
                 if (ok) {
-                    call_data->Proceed();
+                    call_data->Proceed(true);
                 } else {
                     delete call_data;
                 }
@@ -203,236 +207,294 @@ class ServerImpl final {
     }
 
     class BaseCallData {
-       public:
-        virtual void Proceed() = 0;
+    public:
+        virtual void Proceed(bool ok) = 0;
         virtual ~BaseCallData() {}
     };
 
     class HeartbeatCallData : public BaseCallData {
-       public:
-        HeartbeatCallData(Messenger::AsyncService *service,
-                          ServerCompletionQueue *cq)
-            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
-            Proceed();
-        }
-
-        void Proceed() override {
-            if (status_ == CREATE) {
-                status_ = PROCESS;
-                service_->RequestHeartbeat(&ctx_, &request_, &responder_, cq_,
-                                           cq_, this);
-            } else if (status_ == PROCESS) {
-                new HeartbeatCallData(service_, cq_);
-
-                response_.set_success(true);
-                status_ = FINISH;
-                responder_.Finish(response_, Status::OK, this);
-            } else {
-                GPR_ASSERT(status_ == FINISH);
-                delete this;
+        public:
+            HeartbeatCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+                : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+                // Start listening for a new Heartbeat request
+                service_->RequestHeartbeat(&ctx_, &request_, &responder_, cq_, cq_, this);
             }
-        }
 
-       private:
-        Messenger::AsyncService *service_;
-        ServerCompletionQueue *cq_;
-        ServerContext ctx_;
+            void Proceed(bool ok) override {
+                if (status_ == CREATE) {
+                    if (!ok) {
+                        // The call was not successfully started. This often means server shutdown.
+                        delete this;
+                        return;
+                    }
+                    // We've got a new request. Spawn a new handler for the next request.
+                    new HeartbeatCallData(service_, cq_);
 
-        HeartbeatRequest request_;
-        HeartbeatResponse response_;
-        ServerAsyncResponseWriter<HeartbeatResponse> responder_;
+                    // Process this request
+                    status_ = PROCESS;
 
-        enum CallStatus { CREATE, PROCESS, FINISH };
-        CallStatus status_;
+                    // Respond immediately with success
+                    response_.set_success(true);
+                    responder_.Finish(response_, grpc::Status::OK, this);
+
+                } else if (status_ == PROCESS) {
+                    // `Finish()` completed. If !ok here, the response couldn't be sent successfully
+                    // but typically we just clean up anyway.
+                    status_ = FINISH;
+                } else {
+                    GPR_ASSERT(status_ == FINISH);
+                    // RPC finished, clean up
+                    delete this;
+                }
+            }
+
+        private:
+            Messenger::AsyncService *service_;
+            ServerCompletionQueue *cq_;
+            ServerContext ctx_;
+
+            HeartbeatRequest request_;
+            HeartbeatResponse response_;
+            ServerAsyncResponseWriter<HeartbeatResponse> responder_;
+
+            enum CallStatus { CREATE, PROCESS, FINISH };
+            CallStatus status_;
     };
 
     class MessageCallData : public BaseCallData {
-       public:
-        MessageCallData(Messenger::AsyncService *service,
-                        ServerCompletionQueue *cq)
-            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
-            Proceed();
-        }
-
-        void Proceed() override {
-            if (status_ == CREATE) {
-                status_ = PROCESS;
-                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_,
-                                             cq_, this);
-            } else if (status_ == PROCESS) {
-                response_.set_message(request_.message());
-                new MessageCallData(service_, cq_);
-                status_ = FINISH;
-                responder_.Finish(response_, Status::OK, this);
-            } else {
-                GPR_ASSERT(status_ == FINISH);
-                delete this;
+        public:
+            MessageCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+                : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+                // Start listening for a new SendMessage request
+                service_->RequestSendMessage(&ctx_, &request_, &responder_, cq_, cq_, this);
             }
-        }
 
-       private:
-        Messenger::AsyncService *service_;
-        ServerCompletionQueue *cq_;
-        ServerContext ctx_;
+            void Proceed(bool ok) override {
+                if (status_ == CREATE) {
+                    if (!ok) {
+                        // The call was not successfully started (server shutdown?)
+                        delete this;
+                        return;
+                    }
+                    // A new request arrived. Create a new call data to handle the next one.
+                    new MessageCallData(service_, cq_);
 
-        MessageRequest request_;
-        MessageResponse response_;
-        ServerAsyncResponseWriter<MessageResponse> responder_;
+                    // Process the request
+                    status_ = PROCESS;
+                    response_.set_message(request_.message());
 
-        enum CallStatus { CREATE, PROCESS, FINISH };
-        CallStatus status_;
+                    responder_.Finish(response_, grpc::Status::OK, this);
+
+                } else if (status_ == PROCESS) {
+                    // The Finish operation has completed.
+                    status_ = FINISH;
+                } else {
+                    GPR_ASSERT(status_ == FINISH);
+                    // Cleanup
+                    delete this;
+                }
+            }
+
+        private:
+            Messenger::AsyncService *service_;
+            ServerCompletionQueue *cq_;
+            ServerContext ctx_;
+
+            MessageRequest request_;
+            MessageResponse response_;
+            ServerAsyncResponseWriter<MessageResponse> responder_;
+
+            enum CallStatus { CREATE, PROCESS, FINISH };
+            CallStatus status_;
     };
 
     class TopologyUpdateCallData : public BaseCallData {
-    public:
-        TopologyUpdateCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
-            : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
-            Proceed();
-        }
-
-        void Proceed() override {
-            if (status_ == CREATE) {
-                status_ = PROCESS;
+        public:
+            TopologyUpdateCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
+                : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+                // Start listening for an UpdateTopology request
                 service_->RequestUpdateTopology(&ctx_, &request_, &responder_, cq_, cq_, this);
-            } else if (status_ == PROCESS) {
-                new TopologyUpdateCallData(service_, cq_);
-
-                response_.set_success(true);
-                status_ = FINISH;
-                responder_.Finish(response_, Status::OK, this);
-            } else {
-                GPR_ASSERT(status_ == FINISH);
-                delete this;
             }
-        }
 
-    private:
-        Messenger::AsyncService *service_;
-        ServerCompletionQueue *cq_;
-        ServerContext ctx_;
+            void Proceed(bool ok) override {
+                if (status_ == CREATE) {
+                    if (!ok) {
+                        // No call started or server shutting down
+                        delete this;
+                        return;
+                    }
+                    // A new request arrived. Create a new call data instance for the next request.
+                    new TopologyUpdateCallData(service_, cq_);
 
-        TopologyUpdateRequest request_;
-        TopologyUpdateResponse response_;
-        ServerAsyncResponseWriter<TopologyUpdateResponse> responder_;
+                    // Process the request
+                    status_ = PROCESS;
+                    response_.set_success(true);
+                    responder_.Finish(response_, grpc::Status::OK, this);
 
-        enum CallStatus { CREATE, PROCESS, FINISH };
-        CallStatus status_;
+                } else if (status_ == PROCESS) {
+                    // Finish has completed
+                    status_ = FINISH;
+                } else {
+                    GPR_ASSERT(status_ == FINISH);
+                    delete this;
+                }
+            }
+
+        private:
+            Messenger::AsyncService *service_;
+            ServerCompletionQueue *cq_;
+            ServerContext ctx_;
+
+            TopologyUpdateRequest request_;
+            TopologyUpdateResponse response_;
+            ServerAsyncResponseWriter<TopologyUpdateResponse> responder_;
+
+            enum CallStatus { CREATE, PROCESS, FINISH };
+            CallStatus status_;
     };
 
     class ReceiveModelAndTensorCallData : public BaseCallData {
-    public:
-        ReceiveModelAndTensorCallData(myservice::ModelService::AsyncService* service,
-                                      grpc::ServerCompletionQueue* cq)
-            : service_(service),
-              cq_(cq),
-              responder_(&ctx_),
-              got_eos_(false),
-              status_(CREATE) {
-            Proceed(); // Initial trigger
-        }
+        public:
+            ReceiveModelAndTensorCallData(myservice::ModelService::AsyncService* service,
+                                        grpc::ServerCompletionQueue* cq)
+                : service_(service),
+                cq_(cq),
+                responder_(&ctx_),
+                messages_received_(false), // Initialize here
+                status_(CREATE) {
+                Proceed(true); // Initial trigger with ok = true (we're ready to request)
+            }
 
-        void Proceed() override {
-            if (status_ == CREATE) {
-                status_ = READ;
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Requesting ReceiveModelAndTensor RPC.");
-                service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
-            }
-            else if (status_ == READ) {
-                // Spawn a new CallData instance to handle the next incoming RPC
-                new ReceiveModelAndTensorCallData(service_, cq_);
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Starting to read InputData from client.");
-                // Initiate a read operation
-                responder_.Read(&input_msg_, this);
-            }
-            else if (status_ == PROCESS) {
-                if (!ok_) {
-                    // No more messages (client closed stream)
-                    MyLogger::logMessage(MyLogger::PEER_INFO, "Client closed the stream.");
-                    got_eos_ = true;
+            void Proceed(bool ok) override {
+                if (!ok && status_ != FINISH) {
+                    // !ok means no more reads possible (stream closed by client or error).
+                    // We'll handle logic below in the switch based on the state and messages_received_.
                 }
 
-                if (got_eos_) {
-                    // Stream ended, send response
-                    status_ = FINISH;
-                    MyLogger::logMessage(MyLogger::PEER_INFO, "Stream ended. Preparing to send response.");
-
-                    // Build the response FlatBuffer
-                    flatbuffers::grpc::MessageBuilder builder;
-                    auto status_str = builder.CreateString("Success");
-                    auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
-                    builder.Finish(resp_offset);
-                    flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
-
-                    // Finish RPC with the response message
-                    responder_.Finish(response_msg, grpc::Status::OK, this);
-                    MyLogger::logMessage(MyLogger::PEER_INFO, "Response sent to client.");
-                }
-                else {
-                    // We got a message. Parse it as a FlatBuffer
-                    const myservice::InputData* input_data = input_msg_.GetRoot();
-                    if (!input_data) {
-                        MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid InputData received.");
-
-                        // Create an empty response message for the error
-                        flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
-                        responder_.Finish(empty_response, grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid input data"), this);
-                        return;
-                    }
-
-                    // Handle file chunk
-                    if (auto file_chunk = input_data->file()) {
-                        file_data_.insert(file_data_.end(), file_chunk->data()->begin(), file_chunk->data()->end());
-                        MyLogger::logMessage(MyLogger::PEER_INFO, "Received FileChunk of size: " + std::to_string(file_chunk->data()->size()));
-                    }
-
-                    // Handle tensor chunk
-                    if (auto tensor_chunk = input_data->tensor()) {
-                        tensor_data_.insert(tensor_data_.end(), tensor_chunk->data()->begin(), tensor_chunk->data()->end());
-                        MyLogger::logMessage(MyLogger::PEER_INFO, "Received TensorChunk of size: " + std::to_string(tensor_chunk->data()->size()));
-                    }
-
-                    // Read next message
+                if (status_ == CREATE) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Creating an RPC handler");
                     status_ = READ;
-                    MyLogger::logMessage(MyLogger::PEER_INFO, "Awaiting next InputData message.");
-                    responder_.Read(&input_msg_, this);
+                    service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
+
+                } else if (status_ == READ) {
+                    if (!messages_received_){
+                        new ReceiveModelAndTensorCallData(service_, cq_);
+                    }
+
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "READ state");
+                    if (!ok) {
+                        // No more messages. Did we receive any at all?
+                        if (!messages_received_) {
+                            MyLogger::logMessage(MyLogger::PEER_WARN, "Stream ended without any messages");
+                            status_ = FINISH;
+                            // Send an error response
+                            flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
+                            responder_.Finish(empty_response,
+                                            grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "No messages received from client"),
+                                            this);
+                        } else {
+                            MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Stream ended normally after reading messages");
+                            status_ = FINISH;
+                            // Send a success response
+                            flatbuffers::grpc::MessageBuilder builder;
+                            auto status_str = builder.CreateString("Success");
+                            auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
+                            builder.Finish(resp_offset);
+                            auto response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
+                            responder_.Finish(response_msg, grpc::Status::OK, this);
+                        }
+
+                    } else {
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ok during READ state");
+                        status_ = PROCESS;
+                        responder_.Read(&input_msg_, this);
+                    }
+
+                } else if (status_ == PROCESS) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "PROCESS state");
+                    if (!ok) {
+                        // No more messages after receiving at least one (since we are in PROCESS)
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "End of stream detected during PROCESS state");
+                        status_ = FINISH;
+                        // Normal end-of-stream with messages received:
+                        flatbuffers::grpc::MessageBuilder builder;
+                        auto status_str = builder.CreateString("Success");
+                        auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
+                        builder.Finish(resp_offset);
+                        auto response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
+                        responder_.Finish(response_msg, grpc::Status::OK, this);
+
+                    } else {
+                        // We got a message; process it
+                        const myservice::InputData* input_data = input_msg_.GetRoot();
+                        if (!input_data) {
+                            MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid input data received");
+                            status_ = FINISH;
+                            flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
+                            responder_.Finish(empty_response,
+                                            grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid input data"),
+                                            this);
+                            return;
+                        }
+
+                        messages_received_ = true; // We have now successfully processed at least one message
+
+                        // Handle file chunk
+                        if (auto file_chunk = input_data->file()) {
+                            file_data_.insert(file_data_.end(), file_chunk->data()->begin(), file_chunk->data()->end());
+                        }
+
+                        // Handle tensor chunk
+                        if (auto tensor_chunk = input_data->tensor()) {
+                            tensor_data_.insert(tensor_data_.end(), tensor_chunk->data()->begin(), tensor_chunk->data()->end());
+                        }
+
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Processing complete, reading next message");
+                        status_ = READ;
+                        responder_.Read(&input_msg_, this);
+                    }
+
+                } else if (status_ == FINISH) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "FINISH state");
+                    // RPC is finished, clean up
+                    delete this;
                 }
             }
-            else if (status_ == FINISH) {
-                MyLogger::logMessage(MyLogger::PEER_INFO, "Call finished. Cleaning up.");
-                delete this;
-            }
-        }
 
-    private:
-        myservice::ModelService::AsyncService* service_;
-        grpc::ServerCompletionQueue* cq_;
-        grpc::ServerContext ctx_;
+        private:
+            myservice::ModelService::AsyncService* service_;
+            grpc::ServerCompletionQueue* cq_;
+            grpc::ServerContext ctx_;
 
-        grpc::ServerAsyncReader<flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse>, flatbuffers::grpc::Message<myservice::InputData>> responder_;
-        flatbuffers::grpc::Message<myservice::InputData> input_msg_;
+            grpc::ServerAsyncReader<flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse>,
+                                    flatbuffers::grpc::Message<myservice::InputData>> responder_;
 
-        std::vector<uint8_t> file_data_;
-        std::vector<float> tensor_data_;
-        bool got_eos_;
-        bool ok_;
+            flatbuffers::grpc::Message<myservice::InputData> input_msg_;
+            std::vector<uint8_t> file_data_;
+            std::vector<float> tensor_data_;
+            bool messages_received_;  // tracks if we've successfully processed at least one message
 
-        enum CallStatus { CREATE, READ, PROCESS, FINISH };
-        CallStatus status_;
+            enum CallStatus { CREATE, READ, PROCESS, FINISH };
+            CallStatus status_;
     };
 
     void HandleRpcs() {
+        // protobuf rpcs
         new HeartbeatCallData(&service_, cq_.get());
         new MessageCallData(&service_, cq_.get());
         new TopologyUpdateCallData(&service_, cq_.get());
+
+        // flatbuffer rpcs
         new ReceiveModelAndTensorCallData(&model_service_, cq_.get());
 
         void *tag;
         bool ok;
         while (true) {
-            GPR_ASSERT(cq_->Next(&tag, &ok));
+            if (!cq_->Next(&tag, &ok)) {
+                break;
+            }
             BaseCallData *call_data = static_cast<BaseCallData *>(tag);
-
-            call_data->Proceed();
+            call_data->Proceed(ok);
         }
     }
 
