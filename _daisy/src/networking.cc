@@ -188,7 +188,7 @@ class ServerImpl final {
         MyLogger::logMessage(MyLogger::PEER_INFO,
                              "Server listening on " + server_address);
 
-        // Start peer discovery and management tasks
+        // peer discovery and management tasks
         std::thread(&ServerImpl::BroadcastPresence, this).detach();
         std::thread(&ServerImpl::ListenForPeers, this).detach();
         std::thread(&ServerImpl::ManagePeerConnections, this).detach();
@@ -216,35 +216,38 @@ class ServerImpl final {
         public:
             HeartbeatCallData(Messenger::AsyncService *service, ServerCompletionQueue *cq)
                 : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
-                // Start listening for a new Heartbeat request
                 service_->RequestHeartbeat(&ctx_, &request_, &responder_, cq_, cq_, this);
             }
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - CREATE");
+
                     if (!ok) {
-                        // The call was not successfully started. This often means server shutdown.
+                        // the call did not successfully start
                         delete this;
                         return;
                     }
-                    // We've got a new request. Spawn a new handler for the next request.
-                    new HeartbeatCallData(service_, cq_);
 
-                    // Process this request
+                    new HeartbeatCallData(service_, cq_); // new handler for the next request
+
                     status_ = PROCESS;
 
-                    // Respond immediately with success
+                    // respond immediately
                     response_.set_success(true);
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == PROCESS) {
-                    // `Finish()` completed. If !ok here, the response couldn't be sent successfully
-                    // but typically we just clean up anyway.
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - PROCESS");
+
+                    // method `Finish()` completed
+                    // state 'PROCESS' kept for uniformity with other rpcs
                     status_ = FINISH;
                 } else {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - FINISH");
+
                     GPR_ASSERT(status_ == FINISH);
-                    // RPC finished, clean up
-                    delete this;
+                    delete this; // clean up
                 }
             }
 
@@ -271,27 +274,33 @@ class ServerImpl final {
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - CREATE");
+
                     if (!ok) {
-                        // The call was not successfully started (server shutdown?)
+                        // the call did not successfully start
                         delete this;
                         return;
                     }
-                    // A new request arrived. Create a new call data to handle the next one.
-                    new MessageCallData(service_, cq_);
 
-                    // Process the request
+                    new MessageCallData(service_, cq_); // new handler for the next request
+
                     status_ = PROCESS;
-                    response_.set_message(request_.message());
 
+                    // respond immediately
+                    response_.set_message(request_.message());
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == PROCESS) {
-                    // The Finish operation has completed.
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - PROCESS");
+
+                    // method `Finish()` completed
+                    // state 'PROCESS' kept for uniformity with other rpcs
                     status_ = FINISH;
                 } else {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - FINISH");
+
                     GPR_ASSERT(status_ == FINISH);
-                    // Cleanup
-                    delete this;
+                    delete this; // clean up
                 }
             }
 
@@ -318,25 +327,33 @@ class ServerImpl final {
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - CREATE");
+
                     if (!ok) {
-                        // No call started or server shutting down
+                        // the call did not successfully start
                         delete this;
                         return;
                     }
-                    // A new request arrived. Create a new call data instance for the next request.
-                    new TopologyUpdateCallData(service_, cq_);
 
-                    // Process the request
+                    new TopologyUpdateCallData(service_, cq_); // new handler for the next request
+
                     status_ = PROCESS;
+
+                    // respond immediately
                     response_.set_success(true);
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == PROCESS) {
-                    // Finish has completed
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - PROCESS");
+
+                    // method `Finish()` completed
+                    // state 'PROCESS' kept for uniformity with other rpcs
                     status_ = FINISH;
                 } else {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - FINISH");
+
                     GPR_ASSERT(status_ == FINISH);
-                    delete this;
+                    delete this; // clean up
                 }
             }
 
@@ -360,42 +377,39 @@ class ServerImpl final {
                 : service_(service),
                 cq_(cq),
                 responder_(&ctx_),
-                messages_received_(false), // Initialize here
+                messages_received_(false),
                 status_(CREATE) {
-                Proceed(true); // Initial trigger with ok = true (we're ready to request)
+                service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
             }
 
             void Proceed(bool ok) override {
                 if (!ok && status_ != FINISH) {
-                    // !ok means no more reads possible (stream closed by client or error).
-                    // We'll handle logic below in the switch based on the state and messages_received_.
+                    // !ok means no more reads possible (stream closed abruptly by client or error).
                 }
 
                 if (status_ == CREATE) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Creating an RPC handler");
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
+
+                    new ReceiveModelAndTensorCallData(service_, cq_); // create new handler for the next request
+
                     status_ = READ;
-                    service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
+                    responder_.Read(&input_msg_, this);
 
                 } else if (status_ == READ) {
-                    if (!messages_received_){
-                        new ReceiveModelAndTensorCallData(service_, cq_);
-                    }
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
 
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "READ state");
-                    if (!ok) {
-                        // No more messages. Did we receive any at all?
-                        if (!messages_received_) {
-                            MyLogger::logMessage(MyLogger::PEER_WARN, "Stream ended without any messages");
+                    if (!ok) { // no more messages
+                        if (!messages_received_) { // check if any messages were recieved
+                            MyLogger::logMessage(MyLogger::PEER_WARN, "ReceiveModelAndTensor - READ - stream ended with no messages");
                             status_ = FINISH;
-                            // Send an error response
+                            // send an error response
                             flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
                             responder_.Finish(empty_response,
                                             grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "No messages received from client"),
                                             this);
                         } else {
-                            MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Stream ended normally after reading messages");
+                            MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - stream ended with >=1 messages");
                             status_ = FINISH;
-                            // Send a success response
                             flatbuffers::grpc::MessageBuilder builder;
                             auto status_str = builder.CreateString("Success");
                             auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
@@ -405,18 +419,20 @@ class ServerImpl final {
                         }
 
                     } else {
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ok during READ state");
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - stream continuing");
                         status_ = PROCESS;
                         responder_.Read(&input_msg_, this);
                     }
 
                 } else if (status_ == PROCESS) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "PROCESS state");
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
+
                     if (!ok) {
-                        // No more messages after receiving at least one (since we are in PROCESS)
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "End of stream detected during PROCESS state");
+                        // no more messages after receiving at least one (since we are in PROCESS)
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
                         status_ = FINISH;
-                        // Normal end-of-stream with messages received:
+
+                        // normal end-of-stream with messages received:
                         flatbuffers::grpc::MessageBuilder builder;
                         auto status_str = builder.CreateString("Success");
                         auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
@@ -425,7 +441,8 @@ class ServerImpl final {
                         responder_.Finish(response_msg, grpc::Status::OK, this);
 
                     } else {
-                        // We got a message; process it
+                        // processing message
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - using data");
                         const myservice::InputData* input_data = input_msg_.GetRoot();
                         if (!input_data) {
                             MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid input data received");
@@ -437,27 +454,26 @@ class ServerImpl final {
                             return;
                         }
 
-                        messages_received_ = true; // We have now successfully processed at least one message
+                        messages_received_ = true; // at least one message processed
 
-                        // Handle file chunk
+                        // handle file chunk
                         if (auto file_chunk = input_data->file()) {
                             file_data_.insert(file_data_.end(), file_chunk->data()->begin(), file_chunk->data()->end());
                         }
 
-                        // Handle tensor chunk
+                        // handle tensor chunk
                         if (auto tensor_chunk = input_data->tensor()) {
                             tensor_data_.insert(tensor_data_.end(), tensor_chunk->data()->begin(), tensor_chunk->data()->end());
                         }
 
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Processing complete, reading next message");
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message processed");
                         status_ = READ;
                         responder_.Read(&input_msg_, this);
                     }
 
                 } else if (status_ == FINISH) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "FINISH state");
-                    // RPC is finished, clean up
-                    delete this;
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - FINISH");
+                    delete this; // clean up
                 }
             }
 
@@ -472,7 +488,7 @@ class ServerImpl final {
             flatbuffers::grpc::Message<myservice::InputData> input_msg_;
             std::vector<uint8_t> file_data_;
             std::vector<float> tensor_data_;
-            bool messages_received_;  // tracks if we've successfully processed at least one message
+            bool messages_received_;  // checks if at least one message has been processed
 
             enum CallStatus { CREATE, READ, PROCESS, FINISH };
             CallStatus status_;
