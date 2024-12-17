@@ -231,19 +231,13 @@ class ServerImpl final {
 
                     new HeartbeatCallData(service_, cq_); // new handler for the next request
 
-                    status_ = PROCESS;
+                    status_ = FINISH;
 
                     // respond immediately
                     response_.set_success(true);
                     responder_.Finish(response_, grpc::Status::OK, this);
 
-                } else if (status_ == PROCESS) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - PROCESS");
-
-                    // method `Finish()` completed
-                    // state 'PROCESS' kept for uniformity with other rpcs
-                    status_ = FINISH;
-                } else {
+                } else if (status_ == FINISH) {
                     MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
@@ -284,19 +278,13 @@ class ServerImpl final {
 
                     new MessageCallData(service_, cq_); // new handler for the next request
 
-                    status_ = PROCESS;
+                    status_ = FINISH;
 
                     // respond immediately
                     response_.set_message(request_.message());
                     responder_.Finish(response_, grpc::Status::OK, this);
 
-                } else if (status_ == PROCESS) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - PROCESS");
-
-                    // method `Finish()` completed
-                    // state 'PROCESS' kept for uniformity with other rpcs
-                    status_ = FINISH;
-                } else {
+                } else if (status_ == FINISH) {
                     MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
@@ -337,19 +325,13 @@ class ServerImpl final {
 
                     new TopologyUpdateCallData(service_, cq_); // new handler for the next request
 
-                    status_ = PROCESS;
+                    status_ = FINISH;
 
                     // respond immediately
                     response_.set_success(true);
                     responder_.Finish(response_, grpc::Status::OK, this);
 
-                } else if (status_ == PROCESS) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - PROCESS");
-
-                    // method `Finish()` completed
-                    // state 'PROCESS' kept for uniformity with other rpcs
-                    status_ = FINISH;
-                } else {
+                } else if (status_ == FINISH) {
                     MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
@@ -466,7 +448,7 @@ class ServerImpl final {
                             tensor_data_.insert(tensor_data_.end(), tensor_chunk->data()->begin(), tensor_chunk->data()->end());
                         }
 
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message processed");
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message processing");
                         status_ = READ;
                         responder_.Read(&input_msg_, this);
                     }
