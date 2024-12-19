@@ -46,61 +46,11 @@ int main(int argc, char** argv) {
     std::unique_ptr<grpc::ClientWriter<flatbuffers::grpc::Message<myservice::InputData>>> writer(
         stub->ReceiveModelAndTensor(&context, &response_msg));
 
-    // 1. Send an InputData message with the actual FileChunk
     {
         flatbuffers::grpc::MessageBuilder builder;
-
-        // Use the file_bytes read from the file
-        auto file_data = builder.CreateVector(file_bytes.data(), file_bytes.size());
-        auto file_chunk = myservice::CreateFileChunk(builder, file_data);
-
-        // Assuming tensor is not needed in this message; set to 0 or handle accordingly
-        auto input_data = myservice::CreateInputData(builder, file_chunk, 0);
-        builder.Finish(input_data);
-
-        auto message = builder.ReleaseMessage<myservice::InputData>();
-        if (!writer->Write(message)) {
-            std::cerr << "Failed to write the InputData message with FileChunk.\n";
-            return 1;
-        } else {
-            std::cout << "Sent message with actual FileChunk (" << file_bytes.size() << " bytes).\n";
-        }
-    }
-
-    // 2. Send another InputData message with a dummy TensorChunk (as per your original code)
-    {
-        flatbuffers::grpc::MessageBuilder builder;
-
-        // Create some dummy tensor data or replace with actual tensor data
-        float tensor_values[3] = {1.0f, 2.0f, 3.0f};
-        auto tensor_data = builder.CreateVector(tensor_values, 3);
-        auto tensor_chunk = myservice::CreateTensorChunk(builder, tensor_data);
-
-        auto input_data = myservice::CreateInputData(builder, 0, tensor_chunk);
-        builder.Finish(input_data);
-
-        auto message = builder.ReleaseMessage<myservice::InputData>();
-        if (!writer->Write(message)) {
-            std::cerr << "Failed to write the InputData message with TensorChunk.\n";
-            return 1;
-        } else {
-            std::cout << "Sent message with TensorChunk.\n";
-        }
-    }
-
-    // 3. Send another InputData message with a TensorChunk matching the required dimensions
-    {
-        flatbuffers::grpc::MessageBuilder builder;
-
-        // Define tensor dimensions
-        const int dim1 = 3;
-        const int dim2 = 3;
-        const int dim3 = 3;
-        const int dim4 = 3;
-        const int total_elements = dim1 * dim2 * dim3 * dim4;
 
         // Initialize tensor data (e.g., all ones)
-        std::vector<float> tensor_values(total_elements, 1.0f);
+        std::vector<float> tensor_values(1, 1.0f);
 
         // Create a FlatBuffers vector from the tensor data
         auto tensor_data = builder.CreateVector(tensor_values);
@@ -118,9 +68,96 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to write the InputData message with TensorChunk.\n";
             return 1;
         } else {
-            std::cout << "Sent InputData message with TensorChunk of shape (3,3,3,3).\n";
+            std::cout << "Sent message with TensorChunk (" << tensor_values.size() << " bytes).\n";
         }
     }
+
+    // 1. Send an InputData message with the actual FileChunk
+    // {
+    //     flatbuffers::grpc::MessageBuilder builder;
+
+    //     std::cout << "Creating FileChunk. File size: " << file_bytes.size() << " bytes." << std::endl;
+
+    //     // Optional: Log the first few bytes of the file for verification (e.g., first 10 bytes)
+    //     std::cout << "File content (first 10 bytes): ";
+    //     for (size_t i = 0; i < std::min<size_t>(10, file_bytes.size()); ++i) {
+    //         std::cout << std::hex << static_cast<int>(file_bytes[i]) << " ";
+    //     }
+    //     std::cout << std::dec << std::endl; // Reset back to decimal formatting
+
+    //     // Use the file_bytes read from the file
+    //     auto file_data = builder.CreateVector(file_bytes.data(), file_bytes.size());
+    //     auto file_chunk = myservice::CreateFileChunk(builder, file_data);
+
+    //     std::cout << "Contents of FileChunk (first 10 bytes): ";
+    //     for (size_t i = 0; i < std::min<size_t>(10, file_bytes.size()); ++i) {
+    //         std::cout << std::hex << static_cast<int>(file_bytes[i]) << " ";
+    //     }
+    //     std::cout << std::dec << std::endl; // Reset to decimal formatting
+
+    //     const int dim1 = 3;
+    //     const int dim2 = 3;
+    //     const int dim3 = 3;
+    //     const int dim4 = 3;
+    //     const int total_elements = dim1 * dim2 * dim3 * dim4;
+
+    //     // Initialize tensor data (e.g., all ones)
+    //     std::vector<float> tensor_values(total_elements, 1.0f);
+
+    //     // Create a FlatBuffers vector from the tensor data
+    //     auto tensor_data = builder.CreateVector(tensor_values);
+
+    //     // Create a TensorChunk with the tensor data
+    //     auto tensor_chunk = myservice::CreateTensorChunk(builder, tensor_data);
+
+    //     // Assuming tensor is not needed in this message; set to 0 or handle accordingly
+    //     auto input_data = myservice::CreateInputData(builder, file_chunk, tensor_chunk);
+    //     builder.Finish(input_data);
+
+    //     auto message = builder.ReleaseMessage<myservice::InputData>();
+    //     if (!writer->Write(message)) {
+    //         std::cerr << "Failed to write the InputData message with FileChunk.\n";
+    //         return 1;
+    //     } else {
+    //         std::cout << "Sent message with FileChunk (" << file_bytes.size() << " bytes).\n";
+    //     }
+    // }
+
+
+    // {
+    //     flatbuffers::grpc::MessageBuilder builder;
+
+    //     // Define tensor dimensions
+    //     const int dim1 = 3;
+    //     const int dim2 = 3;
+    //     const int dim3 = 3;
+    //     const int dim4 = 3;
+    //     const int total_elements = dim1 * dim2 * dim3 * dim4;
+
+    //     // Initialize tensor data (e.g., all ones)
+    //     std::vector<float> tensor_values(total_elements, 1.0f);
+
+    //     // Create a FlatBuffers vector from the tensor data
+    //     auto tensor_data = builder.CreateVector(tensor_values);
+
+    //     // Create a TensorChunk with the tensor data
+    //     auto tensor_chunk = myservice::CreateTensorChunk(builder, tensor_data);
+
+    //     // Assuming tensor is not needed in this message; set to 0 or handle accordingly
+    //     auto input_data = myservice::CreateInputData(builder, 0, tensor_chunk);
+    //     builder.Finish(input_data);
+
+    //     auto message = builder.ReleaseMessage<myservice::InputData>();
+    //     if (!writer->Write(message)) {
+    //         std::cerr << "Failed to write the InputData message with FileChunk.\n";
+    //         return 1;
+    //     } else {
+    //         std::cout << "Sent message with TensorChunk (" << tensor_values.size() << " bytes).\n";
+    //     }
+    // }
+
+
+
 
     // Indicate that we are done sending messages.
     writer->WritesDone();
