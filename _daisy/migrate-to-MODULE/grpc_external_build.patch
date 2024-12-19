@@ -1,0 +1,9 @@
+# This is a placeholder BUILD file in the external directory.
+# Adjust the rule below to match the expected protocol_compiler target.
+cc_library(
+    name = "protocol_compiler",
+    # If protocol_compiler is a tool, consider cc_binary or other rules.
+    # For now, this is a placeholder with no srcs.
+    srcs = [],
+    visibility = ["//visibility:public"],
+)

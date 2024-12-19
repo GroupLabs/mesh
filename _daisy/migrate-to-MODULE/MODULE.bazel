@@ -1,0 +1,31 @@
+module(
+    name = "your_project",
+    version = "1.0",
+)
+
+bazel_dep(name = "rules_cc", version = "0.0.17")
+bazel_dep(name = "rules_proto", version = "7.0.2")
+bazel_dep(name = "bazel_skylib", version = "1.4.2")
+bazel_dep(name = "rules_apple", version = "3.16.0")
+
+# Register gRPC
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "com_github_grpc_grpc",
+    urls = ["https://github.com/grpc/grpc/archive/b8a04acbbf18fd1c805e5d53d62ed9fa4721a4d1.tar.gz"],
+    strip_prefix = "grpc-b8a04acbbf18fd1c805e5d53d62ed9fa4721a4d1",
+)
+
+# Register custom gRPC deps
+grpc_all_deps_ext = use_extension("//:extensions.bzl", "grpc_all_deps_extension")
+use_repo(grpc_all_deps_ext, "protobuf")
+use_repo(grpc_all_deps_ext, "zlib")
+
+# Libtorch
+libtorch_ext = use_extension("//:extensions.bzl", "libtorch_extension")
+use_repo(libtorch_ext, "libtorch")
+
+# Flatbuffers
+flatbuffers_ext = use_extension("//:extensions.bzl", "flatbuffers_extension")
+use_repo(flatbuffers_ext, "flatc_prebuilt")

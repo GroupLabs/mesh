@@ -9,12 +9,11 @@ NULL
 a.out
 temp.out
 device-config.yaml
-.DS_Store
+**/.DS_Store
 *.bin
 
 # Removing environment files
 .vscode/
-noel/*
 *venv/
 
 # Removing build files for other products

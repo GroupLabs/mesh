@@ -1,5 +1,8 @@
+*venv
+
 # artifacts
 bazel-*
 MODULE.*
+**/flatc
 
 **/__pycache__
