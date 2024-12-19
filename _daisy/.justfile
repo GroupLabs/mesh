@@ -2,6 +2,7 @@ run:
     bazel run --enable_bzlmod=false //:networking
 
 clean:
+    rm MODULE.bazel*
     bazel clean --expunge
 
 test:
