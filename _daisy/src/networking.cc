@@ -511,10 +511,6 @@ class ServerImpl final {
                 return;
             }
 
-            // 3. Create a tensor from tensor_data_.
-            //    Suppose tensor_data_ represents a single input with known shape.
-            //    For example, assume shape [1, 3, 224, 224] for an image-like tensor:
-            //    Adjust shape to match your actual input.
             std::vector<int64_t> input_shape = {3, 3, 3, 3};
             if ((int64_t)tensor_data_.size() != (3*3*3*3)) {
                 MyLogger::logMessage(MyLogger::PEER_WARN, "Tensor data size does not match expected input shape");
