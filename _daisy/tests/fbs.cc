@@ -1,9 +1,40 @@
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include <grpcpp/grpcpp.h>
 #include "model_and_tensor.grpc.fb.h"
 #include "model_and_tensor_generated.h"
 
+// Function to read file into a byte vector
+std::vector<uint8_t> ReadFile(const std::string& file_path) {
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Failed to open file: " + file_path);
+    }
+
+    // Read file into buffer
+    std::vector<uint8_t> buffer((std::istreambuf_iterator<char>(file)),
+                                 std::istreambuf_iterator<char>());
+    return buffer;
+}
+
 int main(int argc, char** argv) {
+    // Check if the file path is provided as a command-line argument
+    std::string file_path = "torchscript/simple_model.pt"; // Default path
+    if (argc > 1) {
+        file_path = argv[1];
+    }
+
+    // Read the file
+    std::vector<uint8_t> file_bytes;
+    try {
+        file_bytes = ReadFile(file_path);
+        std::cout << "Successfully read file: " << file_path << " (" << file_bytes.size() << " bytes)\n";
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << "\n";
+        return 1;
+    }
+
     // Create a channel connected to the server.
     auto channel = grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials());
     auto stub = myservice::ModelService::NewStub(channel);
@@ -15,37 +46,32 @@ int main(int argc, char** argv) {
     std::unique_ptr<grpc::ClientWriter<flatbuffers::grpc::Message<myservice::InputData>>> writer(
         stub->ReceiveModelAndTensor(&context, &response_msg));
 
-    // 1. Send an InputData message with a FileChunk
+    // 1. Send an InputData message with the actual FileChunk
     {
         flatbuffers::grpc::MessageBuilder builder;
 
-        // Create some dummy file data
-        uint8_t file_bytes[4] = {1, 2, 3, 4};
-        auto file_data = builder.CreateVector(file_bytes, 4);
+        // Use the file_bytes read from the file
+        auto file_data = builder.CreateVector(file_bytes.data(), file_bytes.size());
         auto file_chunk = myservice::CreateFileChunk(builder, file_data);
 
-        // Note: The InputData schema is something like:
-        // table InputData {
-        //   file: FileChunk;
-        //   tensor: TensorChunk;
-        // }
-
+        // Assuming tensor is not needed in this message; set to 0 or handle accordingly
         auto input_data = myservice::CreateInputData(builder, file_chunk, 0);
         builder.Finish(input_data);
 
         auto message = builder.ReleaseMessage<myservice::InputData>();
         if (!writer->Write(message)) {
-            std::cerr << "Failed to write the first InputData message.\n";
+            std::cerr << "Failed to write the InputData message with FileChunk.\n";
+            return 1;
         } else {
-            std::cout << "Sent first message with FileChunk.\n";
+            std::cout << "Sent message with actual FileChunk.\n";
         }
     }
 
-    // 2. Send another InputData message with a TensorChunk
+    // 2. Send another InputData message with a dummy TensorChunk (as per your original code)
     {
         flatbuffers::grpc::MessageBuilder builder;
 
-        // Create some dummy tensor data
+        // Create some dummy tensor data or replace with actual tensor data
         float tensor_values[3] = {1.0f, 2.0f, 3.0f};
         auto tensor_data = builder.CreateVector(tensor_values, 3);
         auto tensor_chunk = myservice::CreateTensorChunk(builder, tensor_data);
@@ -55,9 +81,44 @@ int main(int argc, char** argv) {
 
         auto message = builder.ReleaseMessage<myservice::InputData>();
         if (!writer->Write(message)) {
-            std::cerr << "Failed to write the second InputData message.\n";
+            std::cerr << "Failed to write the InputData message with TensorChunk.\n";
+            return 1;
         } else {
-            std::cout << "Sent second message with TensorChunk.\n";
+            std::cout << "Sent message with TensorChunk.\n";
+        }
+    }
+
+    // 3. Send another InputData message with a TensorChunk matching the required dimensions
+    {
+        flatbuffers::grpc::MessageBuilder builder;
+
+        // Define tensor dimensions
+        const int dim1 = 3;
+        const int dim2 = 3;
+        const int dim3 = 3;
+        const int dim4 = 3;
+        const int total_elements = dim1 * dim2 * dim3 * dim4;
+
+        // Initialize tensor data (e.g., all ones)
+        std::vector<float> tensor_values(total_elements, 1.0f);
+
+        // Create a FlatBuffers vector from the tensor data
+        auto tensor_data = builder.CreateVector(tensor_values);
+
+        // Create a TensorChunk with the tensor data
+        auto tensor_chunk = myservice::CreateTensorChunk(builder, tensor_data);
+
+        // Create an InputData message with the TensorChunk
+        auto input_data = myservice::CreateInputData(builder, 0, tensor_chunk);
+        builder.Finish(input_data);
+
+        // Release the message and send it via the writer
+        auto message = builder.ReleaseMessage<myservice::InputData>();
+        if (!writer->Write(message)) {
+            std::cerr << "Failed to write the InputData message with TensorChunk.\n";
+            return 1;
+        } else {
+            std::cout << "Sent InputData message with TensorChunk of shape (3,3,3,3).\n";
         }
     }
 
