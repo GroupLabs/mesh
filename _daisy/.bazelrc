@@ -1,0 +1,12 @@
+# Enforce C++17 standard globally
+build --cxxopt="-std=c++17"
+build --host_cxxopt="-std=c++17"
+
+# Ensure consistent ABI compatibility
+build --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=1"
+
+# Enable verbose failure output for debugging
+build --verbose_failures
+
+# Enable sandboxing to isolate errors
+build --sandbox_debug

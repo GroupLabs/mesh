@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to write the InputData message with FileChunk.\n";
             return 1;
         } else {
-            std::cout << "Sent message with actual FileChunk.\n";
+            std::cout << "Sent message with actual FileChunk (" << file_bytes.size() << " bytes).\n";
         }
     }
 

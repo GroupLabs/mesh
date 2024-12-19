@@ -50,7 +50,7 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",  # Added Protobuf dependency
     ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++17"],
     visibility = ["//visibility:public"],
 )
 
@@ -62,8 +62,9 @@ cc_binary(
         "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",
         ":model_and_tensor_lib",
+        "@libtorch//:libtorch",
     ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++17"],
 )
 
 # test flatbuffers test
@@ -75,7 +76,8 @@ cc_binary(
         ":messaging_cc_grpc",
         ":model_and_tensor_lib",
     ],
-    copts = ["-std=c++14"],
+    copts = ["-std=c++17"],
+    data = ["torchscript/simple_model.pt"],
 )
 
 # Inference Binary

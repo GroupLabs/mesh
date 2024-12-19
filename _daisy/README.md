@@ -23,6 +23,8 @@ _daisy is the name of the project built for distributed inference. This will lat
 `bazel build --enable_bzlmod=false //:inference`
 `bazel-bin/inference <path/to/model>/<model_name>.pt`
 
+e.g. `bazel-bin/inference torchscript/simple_model.pt`
+
 6. Clean with:
 
 `bazel clean --expunge `

@@ -4,6 +4,9 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#include <torch/script.h>  // One of the headers needed for torch::jit::load and torch operations
+#include <fstream>
+
 #include <chrono>
 #include <iostream>
 #include <mutex>
@@ -353,127 +356,211 @@ class ServerImpl final {
     };
 
     class ReceiveModelAndTensorCallData : public BaseCallData {
-        public:
-            ReceiveModelAndTensorCallData(myservice::ModelService::AsyncService* service,
-                                        grpc::ServerCompletionQueue* cq)
-                : service_(service),
-                cq_(cq),
-                responder_(&ctx_),
-                messages_received_(false),
-                status_(CREATE) {
-                service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
+     public:
+        ReceiveModelAndTensorCallData(myservice::ModelService::AsyncService* service,
+                                      grpc::ServerCompletionQueue* cq)
+            : service_(service),
+              cq_(cq),
+              responder_(&ctx_),
+              messages_received_(false),
+              status_(CREATE) {
+            service_->RequestReceiveModelAndTensor(&ctx_, &responder_, cq_, cq_, this);
+        }
+
+        void Proceed(bool ok) override {
+            if (!ok && status_ != FINISH) {
+                // Handle errors if necessary
             }
 
-            void Proceed(bool ok) override {
-                if (!ok && status_ != FINISH) {
-                    // !ok means no more reads possible (stream closed abruptly by client or error).
-                }
+            if (status_ == CREATE) {
+                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
 
-                if (status_ == CREATE) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
+                new ReceiveModelAndTensorCallData(service_, cq_); // prepare for next call
 
-                    new ReceiveModelAndTensorCallData(service_, cq_); // create new handler for the next request
+                status_ = READ;
+                responder_.Read(&input_msg_, this);
 
-                    status_ = READ;
-                    responder_.Read(&input_msg_, this);
+            } else if (status_ == READ) {
+                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
 
-                } else if (status_ == READ) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
-
-                    if (!ok) { // no more messages
-                        if (!messages_received_) { // check if any messages were recieved
-                            MyLogger::logMessage(MyLogger::PEER_WARN, "ReceiveModelAndTensor - READ - stream ended with no messages");
-                            status_ = FINISH;
-                            // send an error response
-                            flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
-                            responder_.Finish(empty_response,
-                                            grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "No messages received from client"),
-                                            this);
-                        } else {
-                            MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - stream ended with >=1 messages");
-                            status_ = FINISH;
-                            flatbuffers::grpc::MessageBuilder builder;
-                            auto status_str = builder.CreateString("Success");
-                            auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
-                            builder.Finish(resp_offset);
-                            auto response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
-                            responder_.Finish(response_msg, grpc::Status::OK, this);
-                        }
-
-                    } else {
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - stream continuing");
-                        status_ = PROCESS;
-                        responder_.Read(&input_msg_, this);
-                    }
-
-                } else if (status_ == PROCESS) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
-
-                    if (!ok) {
-                        // no more messages after receiving at least one (since we are in PROCESS)
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
+                if (!ok) {
+                    // no more messages in stream
+                    if (!messages_received_) {
+                        MyLogger::logMessage(MyLogger::PEER_WARN, "ReceiveModelAndTensor - no messages received");
                         status_ = FINISH;
+                        flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
+                        responder_.Finish(empty_response,
+                                          grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "No messages received from client"),
+                                          this);
+                    } else {
+                        // Stream ended after receiving at least one message
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - stream ended with >=1 messages");
 
-                        // normal end-of-stream with messages received:
+                        // Run inference here before finishing
+                        runInferenceAndLog();
+
+                        status_ = FINISH;
                         flatbuffers::grpc::MessageBuilder builder;
                         auto status_str = builder.CreateString("Success");
                         auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
                         builder.Finish(resp_offset);
                         auto response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
                         responder_.Finish(response_msg, grpc::Status::OK, this);
-
-                    } else {
-                        // processing message
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - using data");
-                        const myservice::InputData* input_data = input_msg_.GetRoot();
-                        if (!input_data) {
-                            MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid input data received");
-                            status_ = FINISH;
-                            flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
-                            responder_.Finish(empty_response,
-                                            grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid input data"),
-                                            this);
-                            return;
-                        }
-
-                        messages_received_ = true; // at least one message processed
-
-                        // handle file chunk
-                        if (auto file_chunk = input_data->file()) {
-                            file_data_.insert(file_data_.end(), file_chunk->data()->begin(), file_chunk->data()->end());
-                        }
-
-                        // handle tensor chunk
-                        if (auto tensor_chunk = input_data->tensor()) {
-                            tensor_data_.insert(tensor_data_.end(), tensor_chunk->data()->begin(), tensor_chunk->data()->end());
-                        }
-
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message processing");
-                        status_ = READ;
-                        responder_.Read(&input_msg_, this);
                     }
 
-                } else if (status_ == FINISH) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - FINISH");
-                    delete this; // clean up
+                } else {
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - continuing stream");
+                    status_ = PROCESS;
+                    responder_.Read(&input_msg_, this);
                 }
+
+            } else if (status_ == PROCESS) {
+                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
+
+                if (!ok) {
+                    // stream ended after receiving at least one message
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
+
+                    // Run inference here before finishing
+                    runInferenceAndLog();
+
+                    status_ = FINISH;
+                    flatbuffers::grpc::MessageBuilder builder;
+                    auto status_str = builder.CreateString("Success");
+                    auto resp_offset = myservice::CreateReceiveModelAndTensorResponse(builder, status_str);
+                    builder.Finish(resp_offset);
+                    auto response_msg = builder.ReleaseMessage<myservice::ReceiveModelAndTensorResponse>();
+                    responder_.Finish(response_msg, grpc::Status::OK, this);
+
+                } else {
+                    // process the message
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message received");
+                    const myservice::InputData* input_data = input_msg_.GetRoot();
+                    if (!input_data) {
+                        MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid input data received");
+                        status_ = FINISH;
+                        flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
+                        responder_.Finish(empty_response,
+                                          grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid input data"),
+                                          this);
+                        return;
+                    }
+
+                    messages_received_ = true;
+
+                    // Check if it's a FileChunk or TensorChunk
+                    if (input_data->file()) {
+                        size_t file_size = input_data->file()->data()->size();
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Received file_chunk with size: " + std::to_string(file_size));
+                        file_data_.insert(file_data_.end(),
+                                          input_data->file()->data()->begin(),
+                                          input_data->file()->data()->end());
+                    }
+
+                    if (input_data->tensor()) {
+                        size_t tensor_size = input_data->tensor()->data()->size();
+                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Received tensor_chunk with size: " + std::to_string(tensor_size));
+                        tensor_data_.insert(tensor_data_.end(),
+                                            input_data->tensor()->data()->begin(),
+                                            input_data->tensor()->data()->end());
+                    }
+
+                    status_ = READ;
+                    responder_.Read(&input_msg_, this);
+                }
+
+            } else if (status_ == FINISH) {
+                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - FINISH");
+                delete this;
+            }
+        }
+
+     private:
+
+        void runInferenceAndLog() {
+            // 1. Write received model data to a temporary file.
+            std::string tmp_model_path = "/tmp/received_model.pt";
+            {
+                std::ofstream ofs(tmp_model_path, std::ios::binary);
+                if (!ofs) {
+                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to open temp model file for writing");
+                    return;
+                }
+                ofs.write(reinterpret_cast<const char*>(file_data_.data()), file_data_.size());
             }
 
-        private:
-            myservice::ModelService::AsyncService* service_;
-            grpc::ServerCompletionQueue* cq_;
-            grpc::ServerContext ctx_;
+            std::ifstream ifs(tmp_model_path, std::ios::binary | std::ios::ate);
+            auto actual_size = ifs.tellg();
+            if (actual_size <= 0) {
+                MyLogger::logMessage(MyLogger::PEER_ERROR, "Model file size is zero or unreadable");
+            }
 
-            grpc::ServerAsyncReader<flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse>,
-                                    flatbuffers::grpc::Message<myservice::InputData>> responder_;
+            std::cout << "File size written: " << actual_size << std::endl;
 
-            flatbuffers::grpc::Message<myservice::InputData> input_msg_;
-            std::vector<uint8_t> file_data_;
-            std::vector<float> tensor_data_;
-            bool messages_received_;  // checks if at least one message has been processed
+            // 2. Load the model
+            torch::jit::script::Module model;
+            try {
+                model = torch::jit::load(tmp_model_path);
+                model.eval();
+            } catch (const c10::Error& e) {
+                MyLogger::logMessage(MyLogger::PEER_ERROR, "Error loading model: " + std::string(e.what()));
+                return;
+            }
 
-            enum CallStatus { CREATE, READ, PROCESS, FINISH };
-            CallStatus status_;
+            // 3. Create a tensor from tensor_data_.
+            //    Suppose tensor_data_ represents a single input with known shape.
+            //    For example, assume shape [1, 3, 224, 224] for an image-like tensor:
+            //    Adjust shape to match your actual input.
+            std::vector<int64_t> input_shape = {3, 3, 3, 3};
+            if ((int64_t)tensor_data_.size() != (3*3*3*3)) {
+                MyLogger::logMessage(MyLogger::PEER_WARN, "Tensor data size does not match expected input shape");
+                return;
+            }
+
+            torch::Tensor input_tensor = torch::from_blob(tensor_data_.data(), input_shape, torch::kFloat);
+            // Move to CPU for simplicity; if you have GPU, you can use `input_tensor.to(torch::kCUDA)` if model is on CUDA.
+            input_tensor = input_tensor.clone(); // Make it own the data if needed.
+
+            // 4. Run inference
+            std::vector<torch::jit::IValue> inputs;
+            inputs.push_back(input_tensor);
+
+            torch::Tensor output;
+            try {
+                auto result = model.forward(inputs);
+                output = result.toTensor();
+            } catch (const c10::Error& e) {
+                MyLogger::logMessage(MyLogger::PEER_ERROR, "Error running inference: " + std::string(e.what()));
+                return;
+            }
+
+            // 5. Log the inference results
+            // For example, if output is a single-dimensional tensor:
+            MyLogger::logMessage(MyLogger::PEER_INFO, "Model output: " + tensorToString(output));
+        }
+
+        std::string tensorToString(const torch::Tensor& tensor) {
+            // Just a helper to convert a small tensor into a string for logging.
+            // For large tensors, consider summarizing instead of printing all values.
+            std::ostringstream oss;
+            oss << tensor;
+            return oss.str();
+        }
+
+        myservice::ModelService::AsyncService* service_;
+        grpc::ServerCompletionQueue* cq_;
+        grpc::ServerContext ctx_;
+
+        grpc::ServerAsyncReader<flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse>,
+                                flatbuffers::grpc::Message<myservice::InputData>> responder_;
+
+        flatbuffers::grpc::Message<myservice::InputData> input_msg_;
+        std::vector<uint8_t> file_data_;
+        std::vector<float> tensor_data_;
+        bool messages_received_;
+
+        enum CallStatus { CREATE, READ, PROCESS, FINISH };
+        CallStatus status_;
     };
 
     void HandleRpcs() {
