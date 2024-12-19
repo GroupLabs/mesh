@@ -375,7 +375,7 @@ class ServerImpl final {
             if (status_ == CREATE) {
                 MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
 
-                new ReceiveModelAndTensorCallData(service_, cq_); // prepare for next call
+                new ReceiveModelAndTensorCallData(service_, cq_); // Prepare for next call
 
                 status_ = READ;
                 responder_.Read(&input_msg_, this);
@@ -384,7 +384,7 @@ class ServerImpl final {
                 MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
 
                 if (!ok) {
-                    // no more messages in stream
+                    // Handle end of stream or no messages
                     if (!messages_received_) {
                         MyLogger::logMessage(MyLogger::PEER_WARN, "ReceiveModelAndTensor - no messages received");
                         status_ = FINISH;
@@ -409,16 +409,19 @@ class ServerImpl final {
                     }
 
                 } else {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - continuing stream");
+                    // Transition to PROCESS state without issuing another Read
+                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - message received");
                     status_ = PROCESS;
-                    responder_.Read(&input_msg_, this);
+                    // Do NOT call Read() here
+                    // The PROCESS state will handle processing and initiate the next Read
+                    Proceed(true); // Manually proceed to PROCESS
                 }
 
             } else if (status_ == PROCESS) {
                 MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
 
                 if (!ok) {
-                    // stream ended after receiving at least one message
+                    // Stream ended after receiving at least one message
                     MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
 
                     // Run inference here before finishing
@@ -433,7 +436,7 @@ class ServerImpl final {
                     responder_.Finish(response_msg, grpc::Status::OK, this);
 
                 } else {
-                    // process the message
+                    // Process the message
                     MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message received");
                     const myservice::InputData* input_data = input_msg_.GetRoot();
                     if (!input_data) {
@@ -465,6 +468,7 @@ class ServerImpl final {
                                             input_data->tensor()->data()->end());
                     }
 
+                    // After processing, transition back to READ and issue the next Read
                     status_ = READ;
                     responder_.Read(&input_msg_, this);
                 }
