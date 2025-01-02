@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include <torch/script.h>  // One of the headers needed for torch::jit::load and torch operations
-#include <fstream>
 
 #include <chrono>
 #include <iostream>

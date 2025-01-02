@@ -70,7 +70,7 @@ cc_binary(
 # test flatbuffers test
 cc_binary(
     name = "test-fbs",
-    srcs = ["tests/fbs.cc"],
+    srcs = ["tests/flatbuffers-test-client.cc"],
     deps = [
         "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",

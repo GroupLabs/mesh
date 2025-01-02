@@ -1,3 +1,5 @@
+// This is an example of how to use flatbuffers in streaming mode to send a file, and a tensor.
+
 #include <iostream>
 #include <fstream>
 #include <vector>
