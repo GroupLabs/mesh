@@ -6,11 +6,14 @@
 
 #include <torch/script.h>  // One of the headers needed for torch::jit::load and torch operations
 
+
 #include <chrono>
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <uuid/uuid.h>
+
+#include "include/log.h"
 
 #include "proto/messaging.grpc.pb.h"
 
@@ -34,45 +37,45 @@ using messaging::Messenger;
 using messaging::TopologyUpdateRequest;
 using messaging::TopologyUpdateResponse;
 
-namespace MyLogger {
-enum VerbosityLevel { NONE, PEER_ERROR, PEER_WARN, PEER_INFO, PEER_DEBUG, PEER_DEBUG2 };
+// namespace Log {
+// enum VerbosityLevel { NONE, PEER_ERROR, PEER_WARN, PEER_INFO, PEER_DEBUG, PEER_DEBUG2 };
 
-VerbosityLevel currentVerbosity = PEER_DEBUG2;
+// VerbosityLevel currentVerbosity = PEER_DEBUG2;
 
-const std::string RESET_COLOR = "\033[0m";
-const std::string RED_COLOR = "\033[31m";
-const std::string YELLOW_COLOR = "\033[33m";
-const std::string PURPLE_COLOR = "\033[35m";
-const std::string BLUE_COLOR = "\033[34m";
+// const std::string RESET_COLOR = "\033[0m";
+// const std::string RED_COLOR = "\033[31m";
+// const std::string YELLOW_COLOR = "\033[33m";
+// const std::string PURPLE_COLOR = "\033[35m";
+// const std::string BLUE_COLOR = "\033[34m";
 
-void logMessage(VerbosityLevel level, const std::string &message) {
-    if (level <= currentVerbosity) {
-        switch (level) {
-            case PEER_ERROR:
-                std::cerr << RED_COLOR << "ERROR: " << message << RESET_COLOR
-                          << std::endl;
-                break;
-            case PEER_WARN:
-                std::cerr << YELLOW_COLOR << "WARN: " << message << RESET_COLOR
-                          << std::endl;
-                break;
-            case PEER_INFO:
-                std::cout << "INFO: " << message << std::endl;
-                break;
-            case PEER_DEBUG:
-                std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR
-                          << std::endl;
-                break;
-            case PEER_DEBUG2:
-                std::cout << PURPLE_COLOR << "DEBUG2: " << message << RESET_COLOR
-                            << std::endl;
-                break;
-            default:
-                break;
-        }
-    }
-}
-}  // namespace MyLogger
+// void logMessage(VerbosityLevel level, const std::string &message) {
+//     if (level <= currentVerbosity) {
+//         switch (level) {
+//             case PEER_ERROR:
+//                 std::cerr << RED_COLOR << "ERROR: " << message << RESET_COLOR
+//                           << std::endl;
+//                 break;
+//             case PEER_WARN:
+//                 std::cerr << YELLOW_COLOR << "WARN: " << message << RESET_COLOR
+//                           << std::endl;
+//                 break;
+//             case PEER_INFO:
+//                 std::cout << "INFO: " << message << std::endl;
+//                 break;
+//             case PEER_DEBUG:
+//                 std::cout << BLUE_COLOR << "DEBUG: " << message << RESET_COLOR
+//                           << std::endl;
+//                 break;
+//             case PEER_DEBUG2:
+//                 std::cout << PURPLE_COLOR << "DEBUG2: " << message << RESET_COLOR
+//                             << std::endl;
+//                 break;
+//             default:
+//                 break;
+//         }
+//     }
+// }
+// }  // namespace Log
 
 struct PeerInfo {
     std::string node_id;
@@ -98,7 +101,7 @@ class MessengerClient {
         if (status.ok()) {
             return "response.reply();";
         } else {
-            MyLogger::logMessage(MyLogger::PEER_ERROR,
+            Log::logMessage(Log::PEER_ERROR,
                                  "RPC failed: " + status.error_message());
             return "RPC failed";
         }
@@ -119,10 +122,10 @@ class MessengerClient {
         ClientContext context;
         auto deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(8000);
         context.set_deadline(deadline);
-        MyLogger::logMessage(MyLogger::PEER_DEBUG, "Attempting to update topology: " + topology);
+        Log::logMessage(Log::PEER_DEBUG, "Attempting to update topology: " + topology);
         Status status = stub_->UpdateTopology(&context, request, &response);
         if (!status.ok()) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to update topology. Error code: " + std::to_string(status.error_code()) + ", Message: " + status.error_message());
+            Log::logMessage(Log::PEER_ERROR, "Failed to update topology. Error code: " + std::to_string(status.error_code()) + ", Message: " + status.error_message());
             return false;
         }
         return true;
@@ -137,7 +140,7 @@ class ServerImpl final {
     ServerImpl() {
         node_id_ = generateUniqueId();
         getOwnIpAddress(own_ip_);
-        MyLogger::logMessage(MyLogger::PEER_INFO, "Node ID: " + node_id_);
+        Log::logMessage(Log::PEER_INFO, "Node ID: " + node_id_);
     }
 
     ~ServerImpl() {
@@ -187,7 +190,7 @@ class ServerImpl final {
 
         cq_ = builder.AddCompletionQueue();
         server_ = builder.BuildAndStart();
-        MyLogger::logMessage(MyLogger::PEER_INFO,
+        Log::logMessage(Log::PEER_INFO,
                              "Server listening on " + server_address);
 
         // peer discovery and management tasks
@@ -223,7 +226,7 @@ class ServerImpl final {
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - CREATE");
+                    Log::logMessage(Log::PEER_DEBUG2, "Heartbeat - CREATE");
 
                     if (!ok) {
                         // the call did not successfully start
@@ -240,7 +243,7 @@ class ServerImpl final {
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == FINISH) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Heartbeat - FINISH");
+                    Log::logMessage(Log::PEER_DEBUG2, "Heartbeat - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
                     delete this; // clean up
@@ -270,7 +273,7 @@ class ServerImpl final {
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - CREATE");
+                    Log::logMessage(Log::PEER_DEBUG2, "Message - CREATE");
 
                     if (!ok) {
                         // the call did not successfully start
@@ -287,7 +290,7 @@ class ServerImpl final {
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == FINISH) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Message - FINISH");
+                    Log::logMessage(Log::PEER_DEBUG2, "Message - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
                     delete this; // clean up
@@ -317,7 +320,7 @@ class ServerImpl final {
 
             void Proceed(bool ok) override {
                 if (status_ == CREATE) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - CREATE");
+                    Log::logMessage(Log::PEER_DEBUG2, "TopologyUpdate - CREATE");
 
                     if (!ok) {
                         // the call did not successfully start
@@ -334,7 +337,7 @@ class ServerImpl final {
                     responder_.Finish(response_, grpc::Status::OK, this);
 
                 } else if (status_ == FINISH) {
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "TopologyUpdate - FINISH");
+                    Log::logMessage(Log::PEER_DEBUG2, "TopologyUpdate - FINISH");
 
                     GPR_ASSERT(status_ == FINISH);
                     delete this; // clean up
@@ -372,7 +375,7 @@ class ServerImpl final {
             }
 
             if (status_ == CREATE) {
-                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
+                Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - CREATE");
 
                 new ReceiveModelAndTensorCallData(service_, cq_); // Prepare for next call
 
@@ -380,12 +383,12 @@ class ServerImpl final {
                 responder_.Read(&input_msg_, this);
 
             } else if (status_ == READ) {
-                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
+                Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - READ");
 
                 if (!ok) {
                     // Handle end of stream or no messages
                     if (!messages_received_) {
-                        MyLogger::logMessage(MyLogger::PEER_WARN, "ReceiveModelAndTensor - no messages received");
+                        Log::logMessage(Log::PEER_WARN, "ReceiveModelAndTensor - no messages received");
                         status_ = FINISH;
                         flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
                         responder_.Finish(empty_response,
@@ -393,7 +396,7 @@ class ServerImpl final {
                                           this);
                     } else {
                         // Stream ended after receiving at least one message
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - stream ended with >=1 messages");
+                        Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - stream ended with >=1 messages");
 
                         // Run inference here before finishing
                         runInferenceAndLog();
@@ -409,7 +412,7 @@ class ServerImpl final {
 
                 } else {
                     // Transition to PROCESS state without issuing another Read
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - READ - message received");
+                    Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - READ - message received");
                     status_ = PROCESS;
                     // Do NOT call Read() here
                     // The PROCESS state will handle processing and initiate the next Read
@@ -417,11 +420,11 @@ class ServerImpl final {
                 }
 
             } else if (status_ == PROCESS) {
-                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
+                Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS");
 
                 if (!ok) {
                     // Stream ended after receiving at least one message
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
+                    Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - stream ended");
 
                     // Run inference here before finishing
                     runInferenceAndLog();
@@ -436,10 +439,10 @@ class ServerImpl final {
 
                 } else {
                     // Process the message
-                    MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message received");
+                    Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - PROCESS - message received");
                     const myservice::InputData* input_data = input_msg_.GetRoot();
                     if (!input_data) {
-                        MyLogger::logMessage(MyLogger::PEER_ERROR, "Invalid input data received");
+                        Log::logMessage(Log::PEER_ERROR, "Invalid input data received");
                         status_ = FINISH;
                         flatbuffers::grpc::Message<myservice::ReceiveModelAndTensorResponse> empty_response;
                         responder_.Finish(empty_response,
@@ -453,7 +456,7 @@ class ServerImpl final {
                     // Check if it's a FileChunk or TensorChunk
                     if (input_data->file()) {
                         size_t file_size = input_data->file()->data()->size();
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Received file_chunk with size: " + std::to_string(file_size));
+                        Log::logMessage(Log::PEER_DEBUG2, "Received file_chunk with size: " + std::to_string(file_size));
                         file_data_.insert(file_data_.end(),
                                           input_data->file()->data()->begin(),
                                           input_data->file()->data()->end());
@@ -461,7 +464,7 @@ class ServerImpl final {
 
                     if (input_data->tensor()) {
                         size_t tensor_size = input_data->tensor()->data()->size();
-                        MyLogger::logMessage(MyLogger::PEER_DEBUG2, "Received tensor_chunk with size: " + std::to_string(tensor_size));
+                        Log::logMessage(Log::PEER_DEBUG2, "Received tensor_chunk with size: " + std::to_string(tensor_size));
                         tensor_data_.insert(tensor_data_.end(),
                                             input_data->tensor()->data()->begin(),
                                             input_data->tensor()->data()->end());
@@ -473,7 +476,7 @@ class ServerImpl final {
                 }
 
             } else if (status_ == FINISH) {
-                MyLogger::logMessage(MyLogger::PEER_DEBUG2, "ReceiveModelAndTensor - FINISH");
+                Log::logMessage(Log::PEER_DEBUG2, "ReceiveModelAndTensor - FINISH");
                 delete this;
             }
         }
@@ -486,7 +489,7 @@ class ServerImpl final {
             {
                 std::ofstream ofs(tmp_model_path, std::ios::binary);
                 if (!ofs) {
-                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to open temp model file for writing");
+                    Log::logMessage(Log::PEER_ERROR, "Failed to open temp model file for writing");
                     return;
                 }
                 ofs.write(reinterpret_cast<const char*>(file_data_.data()), file_data_.size());
@@ -495,7 +498,7 @@ class ServerImpl final {
             std::ifstream ifs(tmp_model_path, std::ios::binary | std::ios::ate);
             auto actual_size = ifs.tellg();
             if (actual_size <= 0) {
-                MyLogger::logMessage(MyLogger::PEER_ERROR, "Model file size is zero or unreadable");
+                Log::logMessage(Log::PEER_ERROR, "Model file size is zero or unreadable");
             }
 
             std::cout << "File size written: " << actual_size << std::endl;
@@ -506,13 +509,13 @@ class ServerImpl final {
                 model = torch::jit::load(tmp_model_path);
                 model.eval();
             } catch (const c10::Error& e) {
-                MyLogger::logMessage(MyLogger::PEER_ERROR, "Error loading model: " + std::string(e.what()));
+                Log::logMessage(Log::PEER_ERROR, "Error loading model: " + std::string(e.what()));
                 return;
             }
 
             std::vector<int64_t> input_shape = {3, 3, 3, 3};
             if ((int64_t)tensor_data_.size() != (3*3*3*3)) {
-                MyLogger::logMessage(MyLogger::PEER_WARN, "Tensor data size does not match expected input shape");
+                Log::logMessage(Log::PEER_WARN, "Tensor data size does not match expected input shape");
                 return;
             }
 
@@ -529,13 +532,13 @@ class ServerImpl final {
                 auto result = model.forward(inputs);
                 output = result.toTensor();
             } catch (const c10::Error& e) {
-                MyLogger::logMessage(MyLogger::PEER_ERROR, "Error running inference: " + std::string(e.what()));
+                Log::logMessage(Log::PEER_ERROR, "Error running inference: " + std::string(e.what()));
                 return;
             }
 
             // 5. Log the inference results
             // For example, if output is a single-dimensional tensor:
-            MyLogger::logMessage(MyLogger::PEER_INFO, "Model output: " + tensorToString(output));
+            Log::logMessage(Log::PEER_INFO, "Model output: " + tensorToString(output));
         }
 
         std::string tensorToString(const torch::Tensor& tensor) {
@@ -585,13 +588,13 @@ class ServerImpl final {
     void BroadcastPresence() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd < 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
+            Log::logMessage(Log::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
             return;
         }
 
         int broadcast = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
+            Log::logMessage(Log::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
             close(sockfd);
             return;
         }
@@ -610,10 +613,10 @@ class ServerImpl final {
                 if (sendto(sockfd, message.c_str(), message.size(), 0,
                            (struct sockaddr *)&broadcast_addr,
                            sizeof(broadcast_addr)) < 0) {
-                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to broadcast message: " + std::string(strerror(errno)));
+                    Log::logMessage(Log::PEER_ERROR, "Failed to broadcast message: " + std::string(strerror(errno)));
                 }
             }
-            MyLogger::logMessage(MyLogger::PEER_DEBUG,
+            Log::logMessage(Log::PEER_DEBUG,
                                  "Broadcasted message: " + message);
 
             std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -623,13 +626,13 @@ class ServerImpl final {
     void ListenForPeers() {
         int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd < 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
+            Log::logMessage(Log::PEER_ERROR, "Failed to create socket: " + std::string(strerror(errno)));
             return;
         }
 
         int broadcast = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-            MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
+            Log::logMessage(Log::PEER_ERROR, "Failed to set socket options: " + std::string(strerror(errno)));
             close(sockfd);
             return;
         }
@@ -645,7 +648,7 @@ class ServerImpl final {
             listen_addr.sin_port = htons(port);
             if (bind(sockfd, (struct sockaddr *)&listen_addr,
                      sizeof(listen_addr)) == 0) {
-                MyLogger::logMessage(MyLogger::PEER_INFO,
+                Log::logMessage(Log::PEER_INFO,
                                      "Successfully bound to port " +
                                          std::to_string(port) +
                                          " for peer discovery.");
@@ -655,8 +658,8 @@ class ServerImpl final {
         }
 
         if (!bound) {
-            MyLogger::logMessage(
-                MyLogger::PEER_ERROR,
+            Log::logMessage(
+                Log::PEER_ERROR,
                 "Failed to bind socket to any port in range 50052-50062: " +
                     std::string(strerror(errno)));
             close(sockfd);
@@ -671,8 +674,8 @@ class ServerImpl final {
             int len = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
                                (struct sockaddr *)&peer_addr, &addr_len);
             if (len < 0) {
-                MyLogger::logMessage(
-                    MyLogger::PEER_ERROR,
+                Log::logMessage(
+                    Log::PEER_ERROR,
                     "Failed to receive: " + std::string(strerror(errno)));
                 continue;
             }
@@ -719,13 +722,13 @@ class ServerImpl final {
                 peer_address, grpc::InsecureChannelCredentials());
             new_peer.stub = Messenger::NewStub(new_peer.channel);
             peers_[peer_id] = std::move(new_peer);
-            MyLogger::logMessage(
-                MyLogger::PEER_INFO,
+            Log::logMessage(
+                Log::PEER_INFO,
                 "Added new peer: " + peer_id + " at " + peer_address);
         } else {
             peers_[peer_id].last_seen = std::chrono::system_clock::now();
-            MyLogger::logMessage(
-                MyLogger::PEER_INFO,
+            Log::logMessage(
+                Log::PEER_INFO,
                 "Updated existing peer: " + peer_id + " at " + peer_address);
         }
     }
@@ -742,7 +745,7 @@ class ServerImpl final {
                         it->second.last_seen = now;
                         ++it;
                     } else {
-                        MyLogger::logMessage(MyLogger::PEER_WARN,
+                        Log::logMessage(Log::PEER_WARN,
                                              "Peer " + it->first +
                                                  " is unresponsive. Removing.");
                         it = peers_.erase(it);
@@ -763,7 +766,7 @@ class ServerImpl final {
                 MessengerClient client(peer.second.channel);
                 // Check connectivity before updating topology
                 if (!client.Heartbeat()) {
-                    MyLogger::logMessage(MyLogger::PEER_WARN, "Peer " + peer.first + " is unresponsive. Skipping topology update.");
+                    Log::logMessage(Log::PEER_WARN, "Peer " + peer.first + " is unresponsive. Skipping topology update.");
                     continue;
                 }
                 int retries = 3;
@@ -771,12 +774,12 @@ class ServerImpl final {
                     if (client.UpdateTopology(topology)) {
                         break;
                     }
-                    MyLogger::logMessage(MyLogger::PEER_WARN, "Retrying topology update for peer: " + peer.first);
+                    Log::logMessage(Log::PEER_WARN, "Retrying topology update for peer: " + peer.first);
                     retries--;
                     std::this_thread::sleep_for(std::chrono::seconds(2));  // Backoff before retrying
                 }
                 if (retries == 0) {
-                    MyLogger::logMessage(MyLogger::PEER_ERROR, "Failed to update topology for peer: " + peer.first);
+                    Log::logMessage(Log::PEER_ERROR, "Failed to update topology for peer: " + peer.first);
                 }
             }
         }
@@ -804,8 +807,8 @@ class ServerImpl final {
         serv.sin_port = htons(kDnsPort);
 
         if (connect(sock, (const struct sockaddr *)&serv, sizeof(serv)) != 0) {
-            MyLogger::logMessage(
-                MyLogger::PEER_ERROR,
+            Log::logMessage(
+                Log::PEER_ERROR,
                 "Connect failed: " + std::string(strerror(errno)));
             strcpy(ip, "127.0.0.1");
             return;
@@ -814,8 +817,8 @@ class ServerImpl final {
         struct sockaddr_in name;
         socklen_t namelen = sizeof(name);
         if (getsockname(sock, (struct sockaddr *)&name, &namelen) != 0) {
-            MyLogger::logMessage(
-                MyLogger::PEER_ERROR,
+            Log::logMessage(
+                Log::PEER_ERROR,
                 "Connect failed: " + std::string(strerror(errno)));
             strcpy(ip, "127.0.0.1");
         } else {

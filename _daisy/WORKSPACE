@@ -38,6 +38,7 @@ http_archive(
     name = "libtorch",
     urls = ["https://download.pytorch.org/libtorch/cpu/libtorch-macos-arm64-2.4.0.zip"],
     strip_prefix = "libtorch",
+    integrity = "sha256-W0K+257nvULHxyoESaRphUg6FfWnww/UJAigQPEO8QQ=",
     build_file_content = """
 cc_library(
     name = "libtorch",
@@ -67,6 +68,7 @@ cc_library(
     visibility = ["//visibility:public"],
     copts = [
         "-std=c++17",
+        "-DC10_USE_GLOG=1"
     ],
 )
 """,

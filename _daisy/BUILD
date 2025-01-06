@@ -54,11 +54,20 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+cc_library(
+    name = "log",
+    srcs = ["src/log.cc"],
+    hdrs = ["include/log.h"],
+    visibility = ["//visibility:public"],
+    copts = ["-std=c++17"],
+)
+
 # Networking Binary
 cc_binary(
     name = "networking",
     srcs = ["src/networking.cc"],
     deps = [
+        ":log",
         "@com_github_grpc_grpc//:grpc++",
         ":messaging_cc_grpc",
         ":model_and_tensor_lib",
